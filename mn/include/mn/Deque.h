@@ -72,7 +72,24 @@ namespace mn
 		self.bucket_cap = 0;
 		self.front = { 0, 0 };
 		self.back = { 0, 0 };
-		self.bucket_size = 32;
+		self.bucket_size = sizeof(T) >= 4096 ? 1 : (4096 / sizeof(T));
+		return self;
+	}
+
+	template<typename T>
+	inline static Deque<T>
+	deque_with_allocator(Allocator allocator)
+	{
+		Deque<T> self{};
+		self.allocator = allocator;
+		self.buckets = nullptr;
+		self.count = 0;
+		self.cap = 0;
+		self.bucket_count = 0;
+		self.bucket_cap = 0;
+		self.front = { 0, 0 };
+		self.back = { 0, 0 };
+		self.bucket_size = sizeof(T) >= 4096 ? 1 : (4096 / sizeof(T));
 		return self;
 	}
 
