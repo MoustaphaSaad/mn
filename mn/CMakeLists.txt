@@ -35,6 +35,7 @@ set(HEADER_FILES
 	include/mn/Task.h
 	include/mn/Fmt.h
 	include/mn/Read.h
+	include/mn/Deque.h
 	include/utf8proc/utf8proc.h
 )
 
