@@ -16,6 +16,7 @@
 #include <mn/Path.h>
 #include <mn/Fmt.h>
 #include <mn/Defer.h>
+#include <mn/Deque.h>
 
 #include <chrono>
 #include <iostream>
@@ -515,5 +516,46 @@ TEST_CASE("Fmt")
 		CHECK(n == "[2]{ ABC: V2{ 654, 765 }, DEF: V2{ 6541, 7651 } }");
 		str_free(n);
 		destruct(m);
+	}
+}
+
+TEST_CASE("Deque")
+{
+	SUBCASE("deque push")
+	{
+		Deque nums = deque_new<int>();
+		for (int i = 0; i < 1000; ++i)
+		{
+			if (i % 2 == 0)
+				deque_push_front(nums, i);
+			else
+				deque_push_back(nums, i);
+		}
+
+		for (int i = 0; i < 500; ++i)
+			CHECK(nums[i] % 2 == 0);
+
+		for (int i = 500; i < 1000; ++i)
+			CHECK(nums[i] % 2 != 0);
+
+		deque_free(nums);
+	}
+
+	SUBCASE("deque pop")
+	{
+		Deque nums = deque_new<int>();
+		for (int i = 0; i < 10; ++i)
+		{
+			if (i % 2 == 0)
+				deque_push_front(nums, i);
+			else
+				deque_push_back(nums, i);
+		}
+
+		CHECK(deque_front(nums) == 8);
+
+		CHECK(deque_back(nums) == 9);
+
+		deque_free(nums);
 	}
 }
