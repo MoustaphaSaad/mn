@@ -301,4 +301,21 @@ namespace mn
 	{
 		return self[self.count - 1];
 	}
+
+	template<typename T>
+	inline static Deque<T>
+	deque_clone(const Deque<T>& other, Allocator allocator = allocator_top())
+	{
+		Deque<T> res = deque_with_allocator(allocator);
+		for (size_t i = 0; i < other; ++i)
+			deque_push_back(clone(other[i]));
+		return res;
+	}
+
+	template<typename T>
+	inline static Deque<T>
+	clone(const mn::Deque<T>& other)
+	{
+		return deque_clone(other);
+	}
 }

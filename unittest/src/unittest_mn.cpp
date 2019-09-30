@@ -553,8 +553,13 @@ TEST_CASE("Deque")
 		}
 
 		CHECK(deque_front(nums) == 8);
-
 		CHECK(deque_back(nums) == 9);
+
+		deque_pop_front(nums);
+		CHECK(deque_front(nums) == 6);
+
+		deque_pop_back(nums);
+		CHECK(deque_back(nums) == 7);
 
 		deque_free(nums);
 	}
