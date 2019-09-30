@@ -306,9 +306,9 @@ namespace mn
 	inline static Deque<T>
 	deque_clone(const Deque<T>& other, Allocator allocator = allocator_top())
 	{
-		Deque<T> res = deque_with_allocator(allocator);
-		for (size_t i = 0; i < other; ++i)
-			deque_push_back(clone(other[i]));
+		Deque<T> res = deque_with_allocator<T>(allocator);
+		for (size_t i = 0; i < other.count; ++i)
+			deque_push_back(res, clone(other[i]));
 		return res;
 	}
 
