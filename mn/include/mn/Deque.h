@@ -210,6 +210,17 @@ namespace mn
 	}
 
 	template<typename T>
+	inline static T*
+	deque_alloc_back(Deque<T>& self)
+	{
+		deque_grow_back(self);
+		T* p = &self.buckets[self.back.bucket_index][self.back.element_index];
+		self.back = deque_index_inc(self, self.back);
+		++self.count;
+		return p;
+	}
+
+	template<typename T>
 	inline static void
 	deque_grow_front(Deque<T>& self)
 	{
@@ -252,6 +263,17 @@ namespace mn
 		self.front = deque_index_dec(self, self.front);
 		self.buckets[self.front.bucket_index][self.front.element_index] = v;
 		++self.count;
+	}
+
+	template<typename T>
+	inline static T*
+	deque_alloc_front(Deque<T>& self)
+	{
+		eque_grow_front(self);
+		T* p = &self.buckets[self.front.bucket_index][self.front.element_index];
+		self.front = deque_index_dec(self, self.front);
+		++self.count;
+		return p;
 	}
 
 	template<typename T>
