@@ -269,9 +269,9 @@ namespace mn
 	inline static T*
 	deque_alloc_front(Deque<T>& self)
 	{
-		eque_grow_front(self);
-		T* p = &self.buckets[self.front.bucket_index][self.front.element_index];
+		deque_grow_front(self);
 		self.front = deque_index_dec(self, self.front);
+		T* p = &self.buckets[self.front.bucket_index][self.front.element_index];
 		++self.count;
 		return p;
 	}
