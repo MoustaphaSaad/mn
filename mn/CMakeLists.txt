@@ -37,6 +37,8 @@ set(HEADER_FILES
 	include/mn/Read.h
 	include/mn/Deque.h
 	include/mn/Scope.h
+	include/mn/Window.h
+	include/mn/Mutex.h
 	include/utf8proc/utf8proc.h
 )
 
@@ -70,6 +72,8 @@ if(WIN32)
 		src/mn/winos/Thread.cpp
 		src/mn/winos/Virtual_Memory.cpp
 		src/mn/winos/Atomic.cpp
+		src/mn/winos/Window.cpp
+		src/mn/winos/Mutex.cpp
 	)
 elseif(UNIX)
 	set(SOURCE_FILES ${SOURCE_FILES} 
@@ -79,6 +83,8 @@ elseif(UNIX)
 		src/mn/linux/Thread.cpp
 		src/mn/linux/Virtual_Memory.cpp
 		src/mn/linux/Atomic.cpp
+		src/mn/linux/Window.cpp
+		src/mn/linux/Mutex.cpp
 	)
 endif()
 

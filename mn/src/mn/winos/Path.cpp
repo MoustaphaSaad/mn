@@ -169,6 +169,10 @@ namespace mn
 
 		Block os_path = to_os_encoding(path_os_encoding(path, memory::tmp()), memory::tmp());
 		[[maybe_unused]] bool result = SetCurrentDirectory((LPCWSTR)os_path.ptr);
+		int err = 0; 
+		if (!result)
+			err = GetLastError();
+		printf("Path is:\t%s. Error is:\t%d", path, err);
 		assert(result && "SetCurrentDirectory Failed");
 	}
 

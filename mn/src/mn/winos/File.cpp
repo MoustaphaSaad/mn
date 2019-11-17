@@ -304,11 +304,19 @@ namespace mn
 
 		Block os_str = to_os_encoding(filename);
 		LPWSTR win_filename = (LPWSTR)os_str.ptr;
-		HANDLE windows_handle = CreateFile (win_filename, desired_access, 0, NULL,
+		HANDLE windows_handle = CreateFile(
+			win_filename,
+			desired_access,
+			FILE_SHARE_READ | FILE_SHARE_DELETE | FILE_SHARE_WRITE,
+			NULL,
 											creation_disposition,
 											FILE_ATTRIBUTE_NORMAL,
 											NULL);
-
+		int err;
+		err = GetLastError();
+		printf("Error is:\t%d\n", err);
+		if (err)
+			printf("File was:\t%s", filename);
 		if(windows_handle == INVALID_HANDLE_VALUE)
 			return nullptr;
 
