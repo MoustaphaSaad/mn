@@ -312,11 +312,6 @@ namespace mn
 											creation_disposition,
 											FILE_ATTRIBUTE_NORMAL,
 											NULL);
-		int err;
-		err = GetLastError();
-		printf("Error is:\t%d\n", err);
-		if (err)
-			printf("File was:\t%s", filename);
 		if(windows_handle == INVALID_HANDLE_VALUE)
 			return nullptr;
 

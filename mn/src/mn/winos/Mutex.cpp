@@ -14,14 +14,12 @@
 
 namespace mn
 {
-	MN_EXPORT MutexCreationResult
+	MutexCreationResult
 	create_mutex(mn::Str mutex_name, bool isOwner)
 	{
 		MutexCreationResult res{};
 
-		auto creationres = CreateMutexA(0, isOwner, mutex_name.ptr); // try to create a named mutex
-
-		printf("Mutex handle:\t%p.\n", creationres);
+		CreateMutexA(0, isOwner, mutex_name.ptr); // try to create a named mutex
 
 		switch (GetLastError())
 		{
@@ -37,10 +35,22 @@ namespace mn
 		}
 		default:
 			res.kind = MutexCreationResult::Result_KIND::SUCCESS;
-			printf("Mutex Success!\n");
 			break;
 		}
 
 		return res;
+	}
+
+	bool
+	wait_mutex(mn::Str mutex_name)
+	{
+		auto handle = OpenMutexA(MUTEX_ALL_ACCESS, FALSE, mutex_name.ptr);
+		if (handle != NULL)
+		{
+			auto result = WaitForSingleObject(handle, 0);
+			if (result == S_OK)
+				return true;
+		}
+		return false;
 	}
 } // namespace mn

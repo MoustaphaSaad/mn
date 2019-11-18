@@ -46,4 +46,11 @@ namespace mn
 		EnumWindows(_enumerate_windows_callback, (LPARAM) &data);
 		return data.hwnd;
 	}
+
+	uint64_t
+	get_current_active_window()
+	{
+		HWND hwnd = GetActiveWindow();
+		return (uint64_t) hwnd;
+	}
 }

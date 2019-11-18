@@ -24,4 +24,13 @@ namespace mn
 	{
 		return create_mutex(mn::str_from_c(mutex_name), isOwner);
 	}
+
+	MN_EXPORT bool
+	wait_mutex(mn::Str mutex_name);
+	
+	inline static bool 
+	wait_mutex(const char* mutex_name)
+	{
+		return wait_mutex(mn::str_from_c(mutex_name));
+	}
 }
