@@ -50,6 +50,7 @@ namespace mn
 			auto result = WaitForSingleObject(handle, 0);
 			if (result == S_OK)
 				return true;
+			CloseHandle(handle);
 		}
 		return false;
 	}
