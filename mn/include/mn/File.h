@@ -79,6 +79,17 @@ namespace mn
 		OPEN_APPEND
 	};
 
+	enum class SHARE_MODE
+	{
+		SHARE_READ,
+		SHARE_WRITE,
+		SHARE_DELETE,
+		SHARE_READ_WRITE,
+		SHARE_READ_DELETE,
+		SHARE_WRITE_DELETE,
+		SHARE_ALL,
+	};
+
 	/**
 	 * @brief      IO_MODE enum
 	 * 

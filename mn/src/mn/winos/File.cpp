@@ -253,7 +253,7 @@ namespace mn
 
 	//files
 	File
-	file_open(const char* filename, IO_MODE io_mode, OPEN_MODE open_mode)
+	file_open(const char* filename, IO_MODE io_mode, OPEN_MODE open_mode, SHARE_MODE share_mode = SHARE_MODE::SHARE_ALL)
 	{
 		mn_scope();
 
@@ -302,16 +302,44 @@ namespace mn
 				break;
 		}
 
+		DWORD sharing_disposition;
+		switch (share_mode)
+		{
+		case SHARE_MODE::SHARE_READ:
+			sharing_disposition = FILE_SHARE_READ;
+			break;
+		case SHARE_MODE::SHARE_WRITE:
+			sharing_disposition = FILE_SHARE_WRITE;
+			break;
+		case SHARE_MODE::SHARE_DELETE:
+			sharing_disposition = FILE_SHARE_DELETE;
+			break;
+		case SHARE_MODE::SHARE_READ_WRITE: 
+			sharing_disposition = FILE_SHARE_READ | FILE_SHARE_WRITE;
+			break;
+		case SHARE_MODE::SHARE_READ_DELETE:
+			sharing_disposition = FILE_SHARE_READ | FILE_SHARE_DELETE;
+			break;
+		case SHARE_MODE::SHARE_WRITE_DELETE:
+			sharing_disposition = FILE_SHARE_WRITE | FILE_SHARE_DELETE;
+			break;
+		case SHARE_MODE::SHARE_ALL:
+		default:
+			sharing_disposition = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE ;
+			break;
+		}
+
 		Block os_str = to_os_encoding(filename);
 		LPWSTR win_filename = (LPWSTR)os_str.ptr;
 		HANDLE windows_handle = CreateFile(
 			win_filename,
 			desired_access,
-			FILE_SHARE_READ | FILE_SHARE_DELETE | FILE_SHARE_WRITE,
+			sharing_disposition,
 			NULL,
-											creation_disposition,
-											FILE_ATTRIBUTE_NORMAL,
-											NULL);
+			creation_disposition,
+			FILE_ATTRIBUTE_NORMAL,
+			NULL);
+
 		if(windows_handle == INVALID_HANDLE_VALUE)
 			return nullptr;
 

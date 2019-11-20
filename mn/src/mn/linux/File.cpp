@@ -125,7 +125,7 @@ namespace mn
 	}
 
 	File
-	file_open(const char* filename, IO_MODE io_mode, OPEN_MODE open_mode)
+	file_open(const char* filename, IO_MODE io_mode, OPEN_MODE open_mode, SHARE_MODE share_mode = SHARE_MODE::SHARE_ALL)
 	{
 		int flags = 0;
 
@@ -177,7 +177,7 @@ namespace mn
 				flags |= O_TRUNC;
 				break;
 		}
-
+		
 		int linux_handle = ::open(filename, flags, S_IRWXU);
 		assert(linux_handle != -1);
 		if(linux_handle == -1)
