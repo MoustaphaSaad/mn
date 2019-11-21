@@ -130,12 +130,12 @@ namespace mn
 	 * @param[in]  open_mode  The open mode
 	 */
 	MN_EXPORT File
-	file_open(const char* filename, IO_MODE io_mode, OPEN_MODE open_mode);
+	file_open(const char* filename, IO_MODE io_mode, OPEN_MODE open_mode, SHARE_MODE share_mode = SHARE_MODE::SHARE_ALL);
 
 	inline static File
-	file_open(const Str& filename, IO_MODE io_mode, OPEN_MODE open_mode)
+	file_open(const Str& filename, IO_MODE io_mode, OPEN_MODE open_mode, SHARE_MODE share_mode = SHARE_MODE::SHARE_ALL)
 	{
-		return file_open(filename.ptr, io_mode, open_mode);
+		return file_open(filename.ptr, io_mode, open_mode, share_mode);
 	}
 
 	/**
