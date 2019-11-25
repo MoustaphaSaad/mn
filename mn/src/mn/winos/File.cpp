@@ -324,8 +324,11 @@ namespace mn
 			sharing_disposition = FILE_SHARE_WRITE | FILE_SHARE_DELETE;
 			break;
 		case SHARE_MODE::SHARE_ALL:
-		default:
 			sharing_disposition = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE ;
+			break;
+		case SHARE_MODE::NONE:
+		default:
+			sharing_disposition = NULL;
 			break;
 		}
 

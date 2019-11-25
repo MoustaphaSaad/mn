@@ -177,6 +177,17 @@ namespace mn
 				flags |= O_TRUNC;
 				break;
 		}
+
+		switch(share_mode)
+		{
+			case SHARE_NONE:
+				if(flags & O_CREAT) //undefined behavior ow.
+					flags |= O_EXCL;
+				break;
+			
+			default:
+				break;
+		}
 		
 		int linux_handle = ::open(filename, flags, S_IRWXU);
 		assert(linux_handle != -1);

@@ -6,16 +6,13 @@
 
 namespace mn
 {
-	struct MutexCreationResult
+	enum MutexCreationResult
 	{
-		enum Result_KIND
-		{
-			SUCCESS,
-			ALREADY_EXISTS,
-			FAILURE
-		};
-		Result_KIND kind;
+		FAILURE,
+		SUCCESS,
+		ALREADY_EXISTS,		
 	};
+
 	MN_EXPORT MutexCreationResult
 	create_mutex(mn::Str mutex_name, bool isOwner = true);
 

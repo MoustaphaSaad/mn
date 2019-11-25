@@ -88,6 +88,7 @@ namespace mn
 		SHARE_READ_DELETE,
 		SHARE_WRITE_DELETE,
 		SHARE_ALL,
+		SHARE_NONE,
 	};
 
 	/**
