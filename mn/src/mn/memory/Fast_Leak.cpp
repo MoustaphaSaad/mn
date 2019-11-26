@@ -18,8 +18,8 @@ namespace mn::memory
 			::fprintf(
 				stderr,
 				"Leaks count: %zu, Leaks size(bytes): %zu, for callstack turn on 'MN_LEAK' flag\n",
-				atomic_count,
-				atomic_size
+				atomic_count.load(),
+				atomic_size.load()
 			);
 		}
 	}
@@ -30,8 +30,8 @@ namespace mn::memory
 		Block res {::malloc(size), size};
 		if(res)
 		{
-			atomic_inc(atomic_count);
-			atomic_add(atomic_size, size);
+			atomic_count.fetch_add(1);
+			atomic_size.fetch_add(size);
 			return res;
 		}
 		return {};
@@ -42,8 +42,8 @@ namespace mn::memory
 	{
 		if(block)
 		{
-			atomic_dec(atomic_count);
-			atomic_add(atomic_size, -int64_t(block.size));
+			atomic_count.fetch_sub(1);
+			atomic_size.fetch_sub(block.size);
 		}
 		::free(block.ptr);
 	}

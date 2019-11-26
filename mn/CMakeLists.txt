@@ -9,7 +9,6 @@ set(HEADER_FILES
 	include/mn/memory/Stack.h
 	include/mn/memory/Virtual.h
 	include/mn/memory/Fast_Leak.h
-	include/mn/Atomic.h
 	include/mn/Base.h
 	include/mn/Buf.h
 	include/mn/Debug.h
@@ -70,7 +69,6 @@ if(WIN32)
 		src/mn/winos/File.cpp
 		src/mn/winos/Thread.cpp
 		src/mn/winos/Virtual_Memory.cpp
-		src/mn/winos/Atomic.cpp
 		src/mn/winos/Mutex.cpp
 	)
 elseif(UNIX)
@@ -80,7 +78,6 @@ elseif(UNIX)
 		src/mn/linux/File.cpp
 		src/mn/linux/Thread.cpp
 		src/mn/linux/Virtual_Memory.cpp
-		src/mn/linux/Atomic.cpp
 		src/mn/linux/Mutex.cpp
 	)
 endif()

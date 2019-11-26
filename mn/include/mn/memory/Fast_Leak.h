@@ -5,16 +5,16 @@
 #include "mn/Base.h"
 #include "mn/Str.h"
 #include "mn/Thread.h"
-#include "mn/Atomic.h"
 
+#include <atomic>
 #include <stdint.h>
 
 namespace mn::memory
 {
 	struct Fast_Leak: Interface
 	{
-		int64_t atomic_size;
-		int64_t atomic_count;
+		std::atomic<size_t> atomic_size;
+		std::atomic<size_t> atomic_count;
 
 		MN_EXPORT
 		Fast_Leak();

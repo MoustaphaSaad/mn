@@ -113,7 +113,8 @@ namespace mn
 	size_t
 	str_find(const Str& self, const Str& target, size_t start)
 	{
-		assert(start < self.count);
+		if (start >= self.count)
+			return size_t(-1);
 
 		for (size_t i = start; i <= self.count - target.count; ++i)
 			if (::memcmp(self.ptr + i, target.ptr, target.count) == 0)
@@ -141,6 +142,45 @@ namespace mn
 		for(size_t i = 0; i < self.count; ++i)
 			if(self[i] == to_remove)
 				self[i] = to_add;
+	}
+
+	void
+	str_replace(Str& self, const Str& search, const Str& replace)
+	{
+		auto out = str_with_allocator(self.allocator);
+		buf_reserve(out, self.count);
+		// find the first pattern or -1
+		size_t search_it = str_find(self, search, 0);
+		size_t it		 = 0;
+		// while we didn't finish the string
+		while (it < self.count)
+		{
+			// if search_str is not found then put search_it to the end of string
+			if (search_it == size_t(-1))
+			{
+				// push the remaining content
+				if (it < self.count)
+					str_block_push(out, Block{self.ptr + it, self.count - it});
+
+				// exit we finished the string
+				break;
+			}
+
+			// push the preceding content
+			if (search_it > it)
+				str_block_push(out, Block{self.ptr + it, search_it - it});
+
+			// push the replacement string
+			str_block_push(out, block_from(replace));
+
+			// advance content iterator by search string
+			it = search_it + search.count;
+
+			// find for next pattern
+			search_it = str_find(self, search, it);
+		}
+		str_free(self);
+		self = out;
 	}
 
 	Buf<Str>

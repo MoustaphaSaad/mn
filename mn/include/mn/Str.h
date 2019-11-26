@@ -208,6 +208,27 @@ namespace mn
 	MN_EXPORT void
 	str_replace(Str& self, char to_remove, char to_add);
 
+	MN_EXPORT void
+	str_replace(Str& self, const Str& search, const Str& replace);
+
+	inline static void
+	str_replace(Str& self, const Str& search, const char* replace)
+	{
+		str_replace(self, search, str_lit(replace));
+	}
+
+	inline static void
+	str_replace(Str& self, const char* search, const Str& replace)
+	{
+		str_replace(self, str_lit(search), replace);
+	}
+
+	inline static void
+	str_replace(Str& self, const char* search, const char* replace)
+	{
+		str_replace(self, str_lit(search), str_lit(replace));
+	}
+
 	/**
 	 * @brief      Splits the string with the given delimiter
 	 *
