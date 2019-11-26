@@ -125,7 +125,7 @@ namespace mn
 	}
 
 	File
-	file_open(const char* filename, IO_MODE io_mode, OPEN_MODE open_mode, SHARE_MODE share_mode = SHARE_MODE::SHARE_ALL)
+    file_open(const char* filename, IO_MODE io_mode, OPEN_MODE open_mode, SHARE_MODE share_mode)
 	{
 		int flags = 0;
 
@@ -180,7 +180,7 @@ namespace mn
 
 		switch(share_mode)
 		{
-			case SHARE_NONE:
+            case SHARE_MODE::SHARE_NONE:
 				if(flags & O_CREAT) //undefined behavior ow.
 					flags |= O_EXCL;
 				break;

@@ -33,7 +33,7 @@ namespace mn
 	};
 
 	MutexCreationResult
-	create_mutex(mn::Str mutex_name, bool isOwner = true)
+    create_mutex(mn::Str mutex_name, bool)
 	{
 		MutexCreationResult result;
 		result.linux_handle = -1;
@@ -79,7 +79,7 @@ namespace mn
 			result.kind = MutexCreationResult::Result_KIND::SUCCESS;
 			result.linux_handle = fileHandle->linux_handle;
 		}
-		
+        return result;
 	}
 
 	bool
@@ -88,5 +88,6 @@ namespace mn
 		auto fileHandle = mn::file_open(mutex_name, mn::IO_MODE::READ_WRITE, mn::OPEN_MODE::CREATE_OVERWRITE);
 		if (fileHandle->linux_handle == -1)
 			return false;
+        return true;
 	}
 }
