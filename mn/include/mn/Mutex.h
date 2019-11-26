@@ -6,11 +6,20 @@
 
 namespace mn
 {
-	enum MutexCreationResult
+	struct MutexCreationResult
 	{
+		enum Result_KIND
+		{
 		FAILURE,
 		SUCCESS,
 		ALREADY_EXISTS,		
+		} kind;
+
+		union
+		{
+			int linux_handle;
+			void* winos_handle;
+		};
 	};
 
 	MN_EXPORT MutexCreationResult
