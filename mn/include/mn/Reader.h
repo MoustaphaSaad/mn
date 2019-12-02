@@ -45,6 +45,12 @@ namespace mn
 	MN_EXPORT Reader
 	reader_wrap_str(Reader reader, const Str& str);
 
+	inline static Reader
+	reader_wrap_str(Reader reader, const char* str)
+	{
+		return reader_wrap_str(reader, str_lit(str));
+	}
+
 	/**
 	 * @brief      Frees the given reader
 	 */

@@ -343,6 +343,13 @@ namespace mn
 			self.ptr[i] = value;
 	}
 
+	/**
+	 * @brief      Concats two Bufs together
+	 *
+	 * @param      self   The buf to concatenate to
+	 * @param[in]  begin  The begin
+	 * @param[in]  end    The end
+	 */
 	template<typename T>
 	inline static void
 	buf_concat(Buf<T>& self, const T* begin, const T* end)
@@ -354,7 +361,7 @@ namespace mn
 	}
 
 	/**
-	 * @brief  update self buffer after concatinating other.
+	 * @brief  update self buffer after concatenating other.
 	 *
 	 * @param[in]  first buffer to concat.
 	 * @param[in]  second buffer to concat.

@@ -1,6 +1,7 @@
 #include "mn/memory/Leak.h"
 #include "mn/memory/CLib.h"
 #include "mn/Debug.h"
+#include "mn/Context.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -55,7 +56,9 @@ namespace mn::memory
 		mutex_unlock(this->mtx);
 
 		ptr->callstack = callstack_dump(clib());
-		return Block{ ptr + 1, size };
+		auto res = Block{ ptr + 1, size };
+		memory_profile_alloc(res.ptr, res.size);
+		return res;
 	}
 
 	void
@@ -77,6 +80,7 @@ namespace mn::memory
 			mutex_unlock(this->mtx);
 
 			str_free(ptr->callstack);
+			memory_profile_free(block.ptr, block.size);
 			::free(ptr);
 		}
 	}

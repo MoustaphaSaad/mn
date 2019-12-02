@@ -2,7 +2,6 @@
 #include "mn/Defer.h"
 #include "mn/Memory.h"
 #include "mn/Thread.h"
-#include "mn/Scope.h"
 
 #define NOMINMAX
 #define WIN32_LEAN_AND_MEAN
@@ -255,8 +254,6 @@ namespace mn
 	File
 	file_open(const char* filename, IO_MODE io_mode, OPEN_MODE open_mode, SHARE_MODE share_mode)
 	{
-		mn_scope();
-
 		//translate the io mode
 		DWORD desired_access;
 		switch(io_mode)

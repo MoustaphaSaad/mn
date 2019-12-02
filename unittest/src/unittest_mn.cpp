@@ -17,7 +17,7 @@
 #include <mn/Fmt.h>
 #include <mn/Defer.h>
 #include <mn/Deque.h>
-#include <mn/Scope.h>
+#include <mn/Result.h>
 
 #include <chrono>
 #include <iostream>
@@ -66,8 +66,6 @@ TEST_CASE("arena allocator")
 
 TEST_CASE("tmp allocator")
 {
-	mn_scope();
-
 	{
 		Str name = str_with_allocator(memory::tmp());
 		name = strf(name, "Name: {}", "Mostafa");
@@ -247,6 +245,11 @@ TEST_CASE("str trim")
 	str_trim(s);
 	CHECK(s == "trim \n koko");
 	str_free(s);
+
+	s = str_from_c("r");
+	str_trim(s);
+	CHECK(s == "r");
+	str_free(s);
 }
 
 TEST_CASE("map general cases")
@@ -360,6 +363,30 @@ TEST_CASE("reader")
 	size_t read_count = readln(reader, str);
 	CHECK(read_count == 12);
 	CHECK(str == "Mostafa Saad");
+
+	str_free(str);
+	reader_free(reader);
+}
+
+TEST_CASE("reader with empty newline")
+{
+	auto text = R"""(my name is mostafa
+
+mostafa is 26 years old)""";
+	Reader reader = reader_wrap_str(nullptr, text);
+	Str str = str_new();
+
+	size_t read_count = readln(reader, str);
+	CHECK(read_count == 19);
+	CHECK(str == "my name is mostafa");
+
+	read_count = readln(reader, str);
+	CHECK(read_count == 1);
+	CHECK(str == "");
+
+	read_count = readln(reader, str);
+	CHECK(read_count == 23);
+	CHECK(str == "mostafa is 26 years old");
 
 	str_free(str);
 	reader_free(reader);
@@ -573,3 +600,52 @@ TEST_CASE("Deque")
 		deque_free(nums);
 	}
 }
+
+Result<int> my_div(int a, int b)
+{
+	if (b == 0)
+		return Err{ "can't calc '{}/{}' because b is 0", a, b };
+	return a / b;
+}
+
+enum class Err_Code { OK, ZERO_DIV };
+
+Result<int, Err_Code> my_div2(int a, int b)
+{
+	if (b == 0)
+		return Err_Code::ZERO_DIV;
+	return a / b;
+}
+
+TEST_CASE("Result default error")
+{
+	SUBCASE("no err")
+	{
+		auto [r, err] = my_div(4, 2);
+		CHECK(err == false);
+		CHECK(r == 2);
+	}
+
+	SUBCASE("err")
+	{
+		auto [r, err] = my_div(4, 0);
+		CHECK(err == true);
+	}
+}
+
+TEST_CASE("Result error code")
+{
+	SUBCASE("no err")
+	{
+		auto [r, err] = my_div2(4, 2);
+		CHECK(err == Err_Code::OK);
+		CHECK(r == 2);
+	}
+
+	SUBCASE("err")
+	{
+		auto [r, err] = my_div2(4, 0);
+		CHECK(err == Err_Code::ZERO_DIV);
+	}
+}
+

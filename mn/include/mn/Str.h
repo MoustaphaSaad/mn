@@ -128,6 +128,12 @@ namespace mn
 	MN_EXPORT void
 	str_block_push(Str& self, Block block);
 
+	/**
+	 * @brief      Pushes a runes to the back of the string
+	 *
+	 * @param      self  The string
+	 * @param[in]  r     rune
+	 */
 	MN_EXPORT void
 	str_push(Str& self, Rune r);
 
@@ -205,9 +211,23 @@ namespace mn
 		return str_find(str_lit(self), r, start_in_bytes);
 	}
 
+	/**
+	 * @brief      Replaces a single char in the string
+	 *
+	 * @param      self       The string
+	 * @param[in]  to_remove  char to remove
+	 * @param[in]  to_add     char to add
+	 */
 	MN_EXPORT void
 	str_replace(Str& self, char to_remove, char to_add);
 
+	/**
+	 * @brief      Replaces a substring in the string
+	 *
+	 * @param      self     The string
+	 * @param[in]  search   The string to search for
+	 * @param[in]  replace  The string replace to add
+	 */
 	MN_EXPORT void
 	str_replace(Str& self, const Str& search, const Str& replace);
 
@@ -382,6 +402,15 @@ namespace mn
 	str_resize(Str& self, size_t size);
 
 	/**
+	 * @brief      Ensures the given string has the capacity to hold the given size
+	 *
+	 * @param      self  The string
+	 * @param[in]  size  The size
+	 */
+	MN_EXPORT void
+	str_reserve(Str& self, size_t size);
+
+	/**
 	 * @brief      Clears the string
 	 *
 	 * @param      self  The string
@@ -418,6 +447,12 @@ namespace mn
 		str_null_terminate(self);
 	}
 
+	/**
+	 * @brief      Trims the string from the left by removing any rune in the cutset
+	 *
+	 * @param      self    The string
+	 * @param[in]  cutset  The cutset to remove
+	 */
 	inline static void
 	str_trim_left(Str& self, const Str& cutset)
 	{
@@ -430,6 +465,11 @@ namespace mn
 		str_trim_left(self, str_lit(cutset));
 	}
 
+	/**
+	 * @brief      removes whitespaces from the left of the string
+	 *
+	 * @param      self  The string
+	 */
 	inline static void
 	str_trim_left(Str& self)
 	{
@@ -441,9 +481,14 @@ namespace mn
 	str_trim_right_pred(Str& self, TFunc&& f)
 	{
 		auto it = rune_prev(end(self));
+		auto c = rune_read(it);
+		if (f(c) == false)
+			return;
+		it = rune_prev(it);
+
 		for(; it != begin(self); it = rune_prev(it))
 		{
-			auto c = rune_read(it);
+			c = rune_read(it);
 			if(f(c) == false)
 			{
 				//then ignore this rune
@@ -455,6 +500,12 @@ namespace mn
 		str_resize(self, s);
 	}
 
+	/**
+	 * @brief      Trims the string from the right by removing any rune in the cutset
+	 *
+	 * @param      self    The string
+	 * @param[in]  cutset  The cutset to remove
+	 */
 	inline static void
 	str_trim_right(Str& self, const Str& cutset)
 	{
@@ -467,6 +518,11 @@ namespace mn
 		str_trim_right(self, str_lit(cutset));
 	}
 
+	/**
+	 * @brief      removes whitespace from the right of the string
+	 *
+	 * @param      self  The string
+	 */
 	inline static void
 	str_trim_right(Str& self)
 	{
@@ -481,6 +537,12 @@ namespace mn
 		str_trim_right_pred(self, f);
 	}
 
+	/**
+	 * @brief      trims the string by removing the cutset from the left and right of the string
+	 *
+	 * @param      self    The string
+	 * @param[in]  cutset  The cutset to remove
+	 */
 	inline static void
 	str_trim(Str& self, const Str& cutset)
 	{
@@ -493,6 +555,11 @@ namespace mn
 		str_trim(self, str_lit(cutset));
 	}
 
+	/**
+	 * @brief      removes whitespace from around the string
+	 *
+	 * @param      self  The string
+	 */
 	inline static void
 	str_trim(Str& self)
 	{

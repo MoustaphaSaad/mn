@@ -244,6 +244,12 @@ namespace mn
 	}
 
 	void
+	str_reserve(Str& self, size_t size)
+	{
+		buf_reserve(self, size);
+	}
+
+	void
 	str_clear(Str& self)
 	{
 		buf_clear(self);

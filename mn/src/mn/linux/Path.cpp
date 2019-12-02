@@ -1,7 +1,7 @@
 #include "mn/Path.h"
 #include "mn/OS.h"
 #include "mn/IO.h"
-#include "mn/Scope.h"
+#include "mn/Defer.h"
 
 #define _LARGEFILE64_SOURCE 1
 #include <sys/sysinfo.h>
@@ -262,10 +262,12 @@ namespace mn
 	bool
 	folder_remove(const char* path)
 	{
-		mn_scope();
+		Buf<Path_Entry> files = path_entries(path);
+		mn_defer(destruct(files));
 
-		Buf<Path_Entry> files = path_entries(path, memory::tmp());
-		Str tmp_path = str_with_allocator(memory::tmp());
+		auto tmp_path = str_new();
+		mn_defer(str_free(tmp_path));
+
 		for(size_t i = 2; i < files.count; ++i)
 		{
 			str_clear(tmp_path);
@@ -294,9 +296,8 @@ namespace mn
 	bool
 	folder_copy(const char* src, const char* dst)
 	{
-		mn_scope();
-
-		Buf<Path_Entry> files = path_entries(src, memory::tmp());
+		Buf<Path_Entry> files = path_entries(src);
+		mn_defer(destruct(files));
 
 		//create the folder no matter what
 		if(folder_make(dst) == false)
@@ -307,8 +308,12 @@ namespace mn
 			return true;
 
 		size_t i = 0;
-		Str tmp_src = str_with_allocator(memory::tmp());
-		Str tmp_dst = str_with_allocator(memory::tmp());
+		auto tmp_src = str_new();
+		mn_defer(str_free(tmp_src));
+
+		auto tmp_dst = str_new();
+		mn_defer(str_free(tmp_dst));
+
 		for(i = 0; i < files.count; ++i)
 		{
 			if(files[i].name != "." && files[i].name != "..")

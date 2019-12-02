@@ -1,7 +1,6 @@
 #include "mn/Path.h"
 #include "mn/File.h"
 #include "mn/OS.h"
-#include "mn/Scope.h"
 
 #define NOMINMAX
 #define WIN32_LEAN_AND_MEAN
@@ -120,20 +119,26 @@ namespace mn
 	bool
 	path_exists(const char* path)
 	{
-		mn_scope();
+		auto os_path = path_os_encoding(path, allocator_top());
+		mn_defer(str_free(os_path));
 
-		Block os_path = to_os_encoding(path_os_encoding(path, memory::tmp()), memory::tmp());
-		DWORD attributes = GetFileAttributes((LPCWSTR)os_path.ptr);
+		auto os_str = to_os_encoding(os_path, allocator_top());
+		mn_defer(mn::free(os_str));
+
+		DWORD attributes = GetFileAttributes((LPCWSTR)os_str.ptr);
 		return attributes != INVALID_FILE_ATTRIBUTES;
 	}
 
 	bool
 	path_is_folder(const char* path)
 	{
-		mn_scope();
+		auto os_path = path_os_encoding(path, allocator_top());
+		mn_defer(str_free(os_path));
 
-		Block os_path = to_os_encoding(path_os_encoding(path, memory::tmp()), memory::tmp());
-		DWORD attributes = GetFileAttributes((LPCWSTR)os_path.ptr);
+		auto os_str = to_os_encoding(os_path, allocator_top());
+		mn_defer(mn::free(os_str));
+
+		DWORD attributes = GetFileAttributes((LPCWSTR)os_str.ptr);
 		return (attributes != INVALID_FILE_ATTRIBUTES &&
 				attributes &  FILE_ATTRIBUTE_DIRECTORY);
 	}
@@ -141,10 +146,13 @@ namespace mn
 	bool
 	path_is_file(const char* path)
 	{
-		mn_scope();
+		auto os_path = path_os_encoding(path, allocator_top());
+		mn_defer(str_free(os_path));
 
-		Block os_path = to_os_encoding(path_os_encoding(path, memory::tmp()), memory::tmp());
-		DWORD attributes = GetFileAttributes((LPCWSTR)os_path.ptr);
+		auto os_str = to_os_encoding(os_path, allocator_top());
+		mn_defer(mn::free(os_str));
+
+		DWORD attributes = GetFileAttributes((LPCWSTR)os_str.ptr);
 		return (attributes != INVALID_FILE_ATTRIBUTES &&
 				!(attributes &  FILE_ATTRIBUTE_DIRECTORY));
 	}
@@ -165,23 +173,29 @@ namespace mn
 	void
 	path_current_change(const char* path)
 	{
-		mn_scope();
+		auto os_path = path_os_encoding(path, allocator_top());
+		mn_defer(str_free(os_path));
 
-		Block os_path = to_os_encoding(path_os_encoding(path, memory::tmp()), memory::tmp());
-		[[maybe_unused]] bool result = SetCurrentDirectory((LPCWSTR)os_path.ptr);
+		auto os_str = to_os_encoding(os_path, allocator_top());
+		mn_defer(mn::free(os_str));
 
+		[[maybe_unused]] bool result = SetCurrentDirectory((LPCWSTR)os_str.ptr);
 		assert(result && "SetCurrentDirectory Failed");
 	}
 
 	Str
 	path_absolute(const char* path, Allocator allocator)
 	{
-		mn_scope();
+		auto os_path = path_os_encoding(path, allocator_top());
+		mn_defer(str_free(os_path));
 
-		Block os_path = to_os_encoding(path_os_encoding(path, memory::tmp()), memory::tmp());
+		auto os_str = to_os_encoding(os_path, allocator_top());
+		mn_defer(mn::free(os_str));
 
-		DWORD required_size = GetFullPathName((LPCWSTR)os_path.ptr, 0, NULL, NULL);
-		Block full_path = alloc_from(memory::tmp(), required_size * sizeof(TCHAR), alignof(TCHAR));
+		DWORD required_size = GetFullPathName((LPCWSTR)os_str.ptr, 0, NULL, NULL);
+
+		Block full_path = alloc(required_size * sizeof(TCHAR), alignof(TCHAR));
+		mn_defer(mn::free(full_path));
 
 		[[maybe_unused]] DWORD written_size = GetFullPathName((LPCWSTR)os_path.ptr, required_size, (LPWSTR)full_path.ptr, NULL);
 		assert(written_size+1 == required_size && "GetFullPathName failed");
@@ -213,10 +227,10 @@ namespace mn
 	Buf<Path_Entry>
 	path_entries(const char* path, Allocator allocator)
 	{
-		mn_scope();
-
 		//add the * at the end
-		Str tmp_path = str_with_allocator(memory::tmp());
+		auto tmp_path = str_new();
+		mn_defer(str_free(tmp_path));
+
 		buf_reserve(tmp_path, ::strlen(path) + 3);
 		str_push(tmp_path, path);
 		if (tmp_path.count && tmp_path[tmp_path.count - 1] != '/')
@@ -224,10 +238,15 @@ namespace mn
 		buf_push(tmp_path, '*');
 		str_null_terminate(tmp_path);
 
+		auto os_path = path_os_encoding(tmp_path, allocator_top());
+		mn_defer(str_free(os_path));
+
+		auto os_str = to_os_encoding(os_path, allocator_top());
+		mn_defer(mn::free(os_str));
+
 		Buf<Path_Entry> res = buf_with_allocator<Path_Entry>(allocator);
-		Block os_path = to_os_encoding(path_os_encoding(tmp_path, memory::tmp()), memory::tmp());
 		WIN32_FIND_DATA file_data{};
-		HANDLE search_handle = FindFirstFileEx((LPCWSTR)os_path.ptr,
+		HANDLE search_handle = FindFirstFileEx((LPCWSTR)os_str.ptr,
 			FindExInfoBasic, &file_data, FindExSearchNameMatch, NULL, FIND_FIRST_EX_CASE_SENSITIVE);
 		if (search_handle != INVALID_HANDLE_VALUE)
 		{
@@ -261,42 +280,60 @@ namespace mn
 	bool
 	file_copy(const char* src, const char* dst)
 	{
-		mn_scope();
+		auto os_src_path = path_os_encoding(src, allocator_top());
+		mn_defer(str_free(os_src_path));
 
-		Block os_src = to_os_encoding(path_os_encoding(src, memory::tmp()), memory::tmp());
-		Block os_dst = to_os_encoding(path_os_encoding(dst, memory::tmp()), memory::tmp());
-		return CopyFile((LPCWSTR)os_src.ptr, (LPCWSTR)os_dst.ptr, TRUE);
+		auto os_src_str = to_os_encoding(os_src_path, allocator_top());
+		mn_defer(mn::free(os_src_str));
+
+		auto os_dst_path = path_os_encoding(dst, allocator_top());
+		mn_defer(str_free(os_dst_path));
+
+		auto os_dst_str = to_os_encoding(os_dst_path, allocator_top());
+		mn_defer(mn::free(os_dst_str));
+
+		return CopyFile((LPCWSTR)os_src_str.ptr, (LPCWSTR)os_dst_str.ptr, TRUE);
 	}
 
 	bool
 	file_remove(const char* path)
 	{
-		mn_scope();
+		auto os_path = path_os_encoding(path, allocator_top());
+		mn_defer(str_free(os_path));
 
-		Block os_path = to_os_encoding(path_os_encoding(path, memory::tmp()), memory::tmp());
-		return DeleteFile((LPCWSTR)os_path.ptr);
+		auto os_str = to_os_encoding(os_path, allocator_top());
+		mn_defer(mn::free(os_str));
+
+		return DeleteFile((LPCWSTR)os_str.ptr);
 	}
 
 	bool
 	file_move(const char* src, const char* dst)
 	{
-		mn_scope();
+		auto os_src_path = path_os_encoding(src, allocator_top());
+		mn_defer(str_free(os_src_path));
 
-		Block os_src = to_os_encoding(path_os_encoding(src, memory::tmp()), memory::tmp());
-		Block os_dst = to_os_encoding(path_os_encoding(dst, memory::tmp()), memory::tmp());
-		return MoveFile((LPCWSTR)os_src.ptr, (LPCWSTR)os_dst.ptr);
+		auto os_src_str = to_os_encoding(os_src_path, allocator_top());
+		mn_defer(mn::free(os_src_str));
+
+		auto os_dst_path = path_os_encoding(dst, allocator_top());
+		mn_defer(str_free(os_dst_path));
+
+		auto os_dst_str = to_os_encoding(os_dst_path, allocator_top());
+		mn_defer(mn::free(os_dst_str));
+
+		return MoveFile((LPCWSTR)os_src_str.ptr, (LPCWSTR)os_dst_str.ptr);
 	}
 
 	Str
 	file_tmp(const Str& base, const Str& ext, Allocator allocator)
 	{
-		mn_scope();
-
 		Str _base;
 		if (base.count != 0)
-			_base = path_normalize(str_clone(base, memory::tmp()));
+			_base = path_normalize(str_clone(base));
 		else
-			_base = folder_tmp(memory::tmp());
+			_base = folder_tmp();
+		mn_defer(str_free(_base));
 
 		Str res = str_clone(_base, allocator);
 		while (true)
@@ -319,10 +356,13 @@ namespace mn
 	bool
 	folder_make(const char* path)
 	{
-		mn_scope();
+		auto os_path = path_os_encoding(path, allocator_top());
+		mn_defer(str_free(os_path));
 
-		Block os_path = to_os_encoding(path_os_encoding(path, memory::tmp()), memory::tmp());
-		DWORD attributes = GetFileAttributes((LPCWSTR)os_path.ptr);
+		auto os_str = to_os_encoding(os_path, allocator_top());
+		mn_defer(mn::free(os_str));
+
+		DWORD attributes = GetFileAttributes((LPCWSTR)os_str.ptr);
 		if (attributes != INVALID_FILE_ATTRIBUTES)
 			return attributes & FILE_ATTRIBUTE_DIRECTORY;
 		return CreateDirectory((LPCWSTR)os_path.ptr, NULL);
@@ -331,15 +371,22 @@ namespace mn
 	bool
 	folder_remove(const char* path)
 	{
-		mn_scope();
+		auto os_path = path_os_encoding(path, allocator_top());
+		mn_defer(str_free(os_path));
 
-		Block os_path = to_os_encoding(path_os_encoding(path, memory::tmp()), memory::tmp());
-		DWORD attributes = GetFileAttributes((LPCWSTR)os_path.ptr);
+		auto os_str = to_os_encoding(os_path, allocator_top());
+		mn_defer(mn::free(os_str));
+
+		DWORD attributes = GetFileAttributes((LPCWSTR)os_str.ptr);
 		if (attributes == INVALID_FILE_ATTRIBUTES)
 			return true;
 
-		Buf<Path_Entry> files = path_entries(path, memory::tmp());
-		Str tmp_path = str_with_allocator(memory::tmp());
+		auto files = path_entries(path);
+		mn_defer(destruct(files));
+
+		auto tmp_path = str_new();
+		mn_defer(str_free(tmp_path));
+
 		for (size_t i = 2; i < files.count; ++i)
 		{
 			str_clear(tmp_path);
@@ -368,9 +415,8 @@ namespace mn
 	bool
 	folder_copy(const char* src, const char* dst)
 	{
-		mn_scope();
-
-		Buf<Path_Entry> files = path_entries(src, memory::tmp());
+		auto files = path_entries(src);
+		mn_defer(destruct(files));
 
 		//create the folder no matter what
 		if (folder_make(dst) == false)
@@ -381,8 +427,13 @@ namespace mn
 			return true;
 
 		size_t i = 0;
-		Str tmp_src = str_with_allocator(memory::tmp());
-		Str tmp_dst = str_with_allocator(memory::tmp());
+
+		auto tmp_src = str_new();
+		mn_defer(str_free(tmp_src));
+
+		auto tmp_dst = str_new();
+		mn_defer(str_free(tmp_dst));
+
 		for (i = 0; i < files.count; ++i)
 		{
 			if(files[i].name != "." && files[i].name != "..")
@@ -418,13 +469,13 @@ namespace mn
 	Str
 	folder_tmp(Allocator allocator)
 	{
-		mn_scope();
-
 		DWORD len = GetTempPath(0, NULL);
 		assert(len != 0);
 
-		Block os_path = alloc_from(memory::tmp(), len*sizeof(TCHAR)+1, alignof(TCHAR));
-		GetTempPath(len, (TCHAR*)os_path.ptr);
-		return path_normalize(from_os_encoding(os_path, allocator));
+		auto os_str = alloc(len*sizeof(TCHAR)+1, alignof(TCHAR));
+		mn_defer(mn::free(os_str));
+
+		GetTempPath(len, (TCHAR*)os_str.ptr);
+		return path_normalize(from_os_encoding(os_str, allocator));
 	}
 }

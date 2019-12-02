@@ -11,6 +11,8 @@
 
 namespace mn
 {
+	static Memory_Profile_Interface MEMORY_PROFILE;
+
 	struct Context_Wrapper
 	{
 		Context self;
@@ -120,5 +122,27 @@ namespace mn
 	reader_tmp()
 	{
 		return context_local()->reader_tmp;
+	}
+
+	Memory_Profile_Interface
+	memory_profile_interface_set(Memory_Profile_Interface self)
+	{
+		auto res = MEMORY_PROFILE;
+		MEMORY_PROFILE = self;
+		return res;
+	}
+
+	void
+	memory_profile_alloc(void* ptr, size_t size)
+	{
+		if(MEMORY_PROFILE.profile_alloc)
+			MEMORY_PROFILE.profile_alloc(MEMORY_PROFILE.self, ptr, size);
+	}
+
+	void
+	memory_profile_free(void* ptr, size_t size)
+	{
+		if(MEMORY_PROFILE.profile_free)
+			MEMORY_PROFILE.profile_free(MEMORY_PROFILE.self, ptr, size);
 	}
 }

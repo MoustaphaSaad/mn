@@ -366,7 +366,7 @@ namespace mn
 			}
 
 			str_block_push(value, Block { bytes.ptr, newline_offset });
-			return reader_skip(reader, newline_offset + additional_skip) - additional_skip;
+			return reader_skip(reader, newline_offset + additional_skip);
 		}
 		else
 		{

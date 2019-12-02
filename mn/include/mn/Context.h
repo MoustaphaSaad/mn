@@ -76,4 +76,21 @@ namespace mn
 
 	MN_EXPORT Reader
 	reader_tmp();
+
+	// Profiling Wrapper
+	struct Memory_Profile_Interface
+	{
+		void* self;
+		void (*profile_alloc)(void* self, void* ptr, size_t size);
+		void (*profile_free)(void* self, void* ptr, size_t size);
+	};
+
+	MN_EXPORT Memory_Profile_Interface
+	memory_profile_interface_set(Memory_Profile_Interface self);
+
+	MN_EXPORT void
+	memory_profile_alloc(void* ptr, size_t size);
+
+	MN_EXPORT void
+	memory_profile_free(void* ptr, size_t size);
 }

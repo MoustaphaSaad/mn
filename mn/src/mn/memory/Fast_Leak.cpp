@@ -1,4 +1,5 @@
 #include "mn/memory/Fast_Leak.h"
+#include "mn/Context.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,6 +29,7 @@ namespace mn::memory
 	Fast_Leak::alloc(size_t size, uint8_t)
 	{
 		Block res {::malloc(size), size};
+		memory_profile_alloc(res.ptr, res.size);
 		if(res)
 		{
 			atomic_count.fetch_add(1);
@@ -45,6 +47,7 @@ namespace mn::memory
 			atomic_count.fetch_sub(1);
 			atomic_size.fetch_sub(block.size);
 		}
+		memory_profile_free(block.ptr, block.size);
 		::free(block.ptr);
 	}
 
