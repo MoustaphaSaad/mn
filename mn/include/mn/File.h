@@ -81,14 +81,14 @@ namespace mn
 
 	enum class SHARE_MODE
 	{
-		SHARE_READ,
-		SHARE_WRITE,
-		SHARE_DELETE,
-		SHARE_READ_WRITE,
-		SHARE_READ_DELETE,
-		SHARE_WRITE_DELETE,
-		SHARE_ALL,
-		SHARE_NONE,
+		READ,
+		WRITE,
+		DELETE,
+		READ_WRITE,
+		READ_DELETE,
+		WRITE_DELETE,
+		ALL,
+		NONE,
 	};
 
 	/**
@@ -131,10 +131,10 @@ namespace mn
 	 * @param[in]  open_mode  The open mode
 	 */
 	MN_EXPORT File
-	file_open(const char* filename, IO_MODE io_mode, OPEN_MODE open_mode, SHARE_MODE share_mode = SHARE_MODE::SHARE_ALL);
+	file_open(const char* filename, IO_MODE io_mode, OPEN_MODE open_mode, SHARE_MODE share_mode = SHARE_MODE::ALL);
 
 	inline static File
-	file_open(const Str& filename, IO_MODE io_mode, OPEN_MODE open_mode, SHARE_MODE share_mode = SHARE_MODE::SHARE_ALL)
+	file_open(const Str& filename, IO_MODE io_mode, OPEN_MODE open_mode, SHARE_MODE share_mode = SHARE_MODE::ALL)
 	{
 		return file_open(filename.ptr, io_mode, open_mode, share_mode);
 	}
@@ -214,4 +214,10 @@ namespace mn
 	 */
 	MN_EXPORT bool
 	file_cursor_move_to_end(File handle);
+
+	MN_EXPORT void
+	file_lock(File handle, int64_t offset, int64_t size);
+
+	MN_EXPORT void
+	file_unlock(File handle, int64_t offset, int64_t size);
 }

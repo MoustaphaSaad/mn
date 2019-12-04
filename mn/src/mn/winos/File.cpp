@@ -8,6 +8,7 @@
 #include <Windows.h>
 #include <mbstring.h>
 #include <tchar.h>
+#undef DELETE
 
 namespace mn
 {
@@ -302,34 +303,36 @@ namespace mn
 		DWORD sharing_disposition;
 		switch (share_mode)
 		{
-		case SHARE_MODE::SHARE_READ:
+		case SHARE_MODE::READ:
 			sharing_disposition = FILE_SHARE_READ;
 			break;
-		case SHARE_MODE::SHARE_WRITE:
+		case SHARE_MODE::WRITE:
 			sharing_disposition = FILE_SHARE_WRITE;
 			break;
-		case SHARE_MODE::SHARE_DELETE:
+		case SHARE_MODE::DELETE:
 			sharing_disposition = FILE_SHARE_DELETE;
 			break;
-		case SHARE_MODE::SHARE_READ_WRITE: 
+		case SHARE_MODE::READ_WRITE:
 			sharing_disposition = FILE_SHARE_READ | FILE_SHARE_WRITE;
 			break;
-		case SHARE_MODE::SHARE_READ_DELETE:
+		case SHARE_MODE::READ_DELETE:
 			sharing_disposition = FILE_SHARE_READ | FILE_SHARE_DELETE;
 			break;
-		case SHARE_MODE::SHARE_WRITE_DELETE:
+		case SHARE_MODE::WRITE_DELETE:
 			sharing_disposition = FILE_SHARE_WRITE | FILE_SHARE_DELETE;
 			break;
-		case SHARE_MODE::SHARE_ALL:
-			sharing_disposition = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE ;
+		case SHARE_MODE::ALL:
+			sharing_disposition = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
 			break;
-		case SHARE_MODE::SHARE_NONE:
+		case SHARE_MODE::NONE:
 		default:
 			sharing_disposition = NULL;
 			break;
 		}
 
-		Block os_str = to_os_encoding(filename);
+		Block os_str = to_os_encoding(filename, allocator_top());
+		mn_defer(mn::free(os_str));
+
 		LPWSTR win_filename = (LPWSTR)os_str.ptr;
 		HANDLE windows_handle = CreateFile(
 			win_filename,
@@ -434,5 +437,29 @@ namespace mn
 		LARGE_INTEGER position, offset;
 		offset.QuadPart = 0;
 		return SetFilePointerEx(self->winos_handle, offset, &position, FILE_END);
+	}
+
+	void
+	file_lock(File self, int64_t offset, int64_t size)
+	{
+		assert(offset >= 0 && size >= 0);
+		DWORD offset_low  = (DWORD)(offset & (0x00000000FFFFFFFF));
+		DWORD offset_high = (DWORD)(offset & (0xFFFFFFFF00000000));
+		DWORD size_low  = (DWORD)(size & (0x00000000FFFFFFFF));
+		DWORD size_high = (DWORD)(size & (0xFFFFFFFF00000000));
+		[[maybe_unused]] BOOL res = LockFile(self->winos_handle, offset_low, offset_high, size_low, size_high);
+		assert(res == TRUE);
+	}
+
+	void
+	file_unlock(File self, int64_t offset, int64_t size)
+	{
+		assert(offset >= 0 && size >= 0);
+		DWORD offset_low  = offset & (0x00000000FFFFFFFF);
+		DWORD offset_high = offset & (0xFFFFFFFF00000000);
+		DWORD size_low  = size & (0x00000000FFFFFFFF);
+		DWORD size_high = size & (0xFFFFFFFF00000000);
+		[[maybe_unused]] BOOL res = UnlockFile(self->winos_handle, offset_low, offset_high, size_low, size_high);
+		assert(res == TRUE);
 	}
 }
