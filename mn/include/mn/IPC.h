@@ -10,9 +10,7 @@ namespace mn::ipc
 	struct Mutex_Result
 	{
 		Mutex mtx;
-		// first boolean flag is set if the mutex_new call was the first call to create the named mutex
-		// otherwise it will be false and the mutex is just opened, no new mutex created (in kernel)
-		bool first;
+		bool locked;
 	};
 
 	enum class LOCK_RESULT

@@ -178,6 +178,19 @@ namespace mn
 				break;
 		}
 
+		// Linux doesn't support the granularity of file sharing like windows so we only support
+		// NONE which is available only in O_CREAT mode
+		switch(share_mode)
+		{
+            case SHARE_MODE::NONE:
+				if(flags & O_CREAT)
+					flags |= O_EXCL;
+				break;
+			
+			default:
+				break;
+		}
+
 		int linux_handle = ::open(filename, flags, S_IRWXU);
 		assert(linux_handle != -1);
 		if(linux_handle == -1)

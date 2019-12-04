@@ -132,7 +132,7 @@ if(WIN32)
 elseif(UNIX)
 	target_link_libraries(mn
 		PRIVATE
-			pthread
+			pthread rt
 	)
 	target_compile_definitions(mn
 		PUBLIC
