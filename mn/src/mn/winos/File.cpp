@@ -455,10 +455,10 @@ namespace mn
 	file_unlock(File self, int64_t offset, int64_t size)
 	{
 		assert(offset >= 0 && size >= 0);
-		DWORD offset_low  = offset & (0x00000000FFFFFFFF);
-		DWORD offset_high = offset & (0xFFFFFFFF00000000);
-		DWORD size_low  = size & (0x00000000FFFFFFFF);
-		DWORD size_high = size & (0xFFFFFFFF00000000);
+		DWORD offset_low  = (DWORD)(offset & (0x00000000FFFFFFFF));
+		DWORD offset_high = (DWORD)(offset & (0xFFFFFFFF00000000));
+		DWORD size_low  = (DWORD)(size & (0x00000000FFFFFFFF));
+		DWORD size_high = (DWORD)(size & (0xFFFFFFFF00000000));
 		[[maybe_unused]] BOOL res = UnlockFile(self->winos_handle, offset_low, offset_high, size_low, size_high);
 		assert(res == TRUE);
 	}

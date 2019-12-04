@@ -12,13 +12,17 @@
 namespace mn::ipc
 {
 	// API
-	Mutex
-	mutex_new(const Str& name)
+	Mutex_Result
+	mutex_new(const Str& name, bool immediate_lock)
 	{
 		auto os_str = to_os_encoding(name, allocator_top());
 		mn_defer(mn::free(os_str));
 
-		return (Mutex)CreateMutex(0, false, (LPCWSTR)os_str.ptr);
+		auto handle = (Mutex)CreateMutex(0, immediate_lock, (LPCWSTR)os_str.ptr);
+		if (handle == INVALID_HANDLE_VALUE)
+			return Mutex_Result{};
+
+		return Mutex_Result{ handle, GetLastError() != ERROR_ALREADY_EXISTS };
 	}
 
 	void
@@ -35,12 +39,20 @@ namespace mn::ipc
 		WaitForSingleObject(self, INFINITE);
 	}
 
-	bool
+	LOCK_RESULT
 	mutex_try_lock(Mutex mtx)
 	{
 		auto self = (HANDLE)mtx;
 		auto res = WaitForSingleObject(self, 0);
-		return (res == WAIT_OBJECT_0 || res == WAIT_ABANDONED);
+		switch(res)
+		{
+		case WAIT_OBJECT_0:
+			return LOCK_RESULT::OBTAINED;
+		case WAIT_ABANDONED:
+			return LOCK_RESULT::ABANDONED;
+		default:
+			return LOCK_RESULT::FAILED;
+		}
 	}
 
 	void

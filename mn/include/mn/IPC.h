@@ -7,13 +7,28 @@ namespace mn::ipc
 {
 	typedef struct IMutex *Mutex;
 
-	MN_EXPORT Mutex
-	mutex_new(const Str& name);
-
-	inline static Mutex
-	mutex_new(const char* name)
+	struct Mutex_Result
 	{
-		return mutex_new(str_lit(name));
+		Mutex mtx;
+		// first boolean flag is set if the mutex_new call was the first call to create the named mutex
+		// otherwise it will be false and the mutex is just opened, no new mutex created (in kernel)
+		bool first;
+	};
+
+	enum class LOCK_RESULT
+	{
+		OBTAINED,
+		ABANDONED,
+		FAILED
+	};
+
+	MN_EXPORT Mutex_Result
+	mutex_new(const Str& name, bool immediate_lock = false);
+
+	inline static Mutex_Result
+	mutex_new(const char* name, bool immediate_lock = false)
+	{
+		return mutex_new(str_lit(name), immediate_lock);
 	}
 
 	MN_EXPORT void
@@ -28,7 +43,7 @@ namespace mn::ipc
 	MN_EXPORT void
 	mutex_lock(Mutex self);
 
-	MN_EXPORT bool
+	MN_EXPORT LOCK_RESULT
 	mutex_try_lock(Mutex self);
 
 	MN_EXPORT void
