@@ -35,7 +35,7 @@ namespace mn::ipc
 	inline static void
 	destruct(Mutex self)
 	{
-		mutex_free(self);
+		mn::ipc::mutex_free(self);
 	}
 
 	MN_EXPORT void

@@ -3,6 +3,7 @@
 #include "mn/Exports.h"
 #include "mn/Stream.h"
 #include "mn/Str.h"
+#undef DELETE
 
 namespace mn
 {
