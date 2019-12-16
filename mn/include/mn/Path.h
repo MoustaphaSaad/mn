@@ -1,31 +1,30 @@
 #pragma once
 
-#include "mn/Exports.h"
 #include "mn/Base.h"
+#include "mn/Exports.h"
 #include "mn/Str.h"
 
 namespace mn
 {
 	/**
-	* @brief      A Helper function which given the filename will load the content of it
-	* into the resulting string
-	*
-	* @param[in]  filename   The filename
-	* @param[in]  allocator  The allocator to be used by the resulting string
-	*
-	* @return     A String containing the content of the file
-	*/
+	 * @brief      A Helper function which given the filename will load the content of it
+	 * into the resulting string
+	 *
+	 * @param[in]  filename   The filename
+	 * @param[in]  allocator  The allocator to be used by the resulting string
+	 *
+	 * @return     A String containing the content of the file
+	 */
 	MN_EXPORT Str
-	file_content_str(const char* filename, Allocator allocator = allocator_top());
+	file_content_str(const char *filename, Allocator allocator = allocator_top());
 
 	inline static Str
-	file_content_str(const Str& filename, Allocator allocator = allocator_top())
+	file_content_str(const Str &filename, Allocator allocator = allocator_top())
 	{
 		return file_content_str(filename.ptr, allocator);
 	}
 
-
-	//File System api
+	// File System api
 	/**
 	 * @brief      Converts from standard encoding(linux-like) to os-specific encoding
 	 *
@@ -34,7 +33,7 @@ namespace mn
 	 * @return     A String containing the encoded path
 	 */
 	MN_EXPORT Str
-	path_os_encoding(const char* path, Allocator allocator = memory::tmp());
+	path_os_encoding(const char *path, Allocator allocator = memory::tmp());
 
 	/**
 	 * @brief      Converts from standard encoding(linux-like) to os-specific encoding
@@ -44,7 +43,7 @@ namespace mn
 	 * @return     A String containing the encoded path
 	 */
 	inline static Str
-	path_os_encoding(const Str& path, Allocator allocator = memory::tmp())
+	path_os_encoding(const Str &path, Allocator allocator = memory::tmp())
 	{
 		return path_os_encoding(path.ptr, allocator);
 	}
@@ -73,9 +72,9 @@ namespace mn
 	 * base = path_join(base, "my_folder1", "my_folder2", "my_file") ->
 	 * base_folder/my_folder1/my_folder2/my_file
 	 */
-	template<typename TFirst, typename ... TArgs>
+	template<typename TFirst, typename... TArgs>
 	inline static Str
-	path_join(Str base, TFirst&& first, TArgs&& ... args)
+	path_join(Str base, TFirst &&first, TArgs &&... args)
 	{
 		str_push(base, std::forward<TFirst>(first));
 		str_push(base, "/");
@@ -86,13 +85,13 @@ namespace mn
 	 * @brief      Returns whether the path exists or not
 	 */
 	MN_EXPORT bool
-	path_exists(const char* path);
+	path_exists(const char *path);
 
 	/**
 	 * @brief      Returns whether the path exists or not
 	 */
 	inline static bool
-	path_exists(const Str& path)
+	path_exists(const Str &path)
 	{
 		return path_exists(path.ptr);
 	}
@@ -101,13 +100,13 @@ namespace mn
 	 * @brief      Returns whether the given path is a folder or not
 	 */
 	MN_EXPORT bool
-	path_is_folder(const char* path);
+	path_is_folder(const char *path);
 
 	/**
 	 * @brief      Returns whether the given path is a folder or not
 	 */
 	inline static bool
-	path_is_folder(const Str& path)
+	path_is_folder(const Str &path)
 	{
 		return path_is_folder(path.ptr);
 	}
@@ -116,13 +115,13 @@ namespace mn
 	 * @brief      Returns whether the given path is a file or not
 	 */
 	MN_EXPORT bool
-	path_is_file(const char* path);
+	path_is_file(const char *path);
 
 	/**
 	 * @brief      Returns whether the given path is a file or not
 	 */
 	inline static bool
-	path_is_file(const Str& path)
+	path_is_file(const Str &path)
 	{
 		return path_is_file(path.ptr);
 	}
@@ -141,7 +140,7 @@ namespace mn
 	 * @param[in]  path  The path
 	 */
 	MN_EXPORT void
-	path_current_change(const char* path);
+	path_current_change(const char *path);
 
 	/**
 	 * @brief      Changes the current path of the process
@@ -149,7 +148,7 @@ namespace mn
 	 * @param[in]  path  The path
 	 */
 	inline static void
-	path_current_change(const Str& path)
+	path_current_change(const Str &path)
 	{
 		path_current_change(path.ptr);
 	}
@@ -161,7 +160,7 @@ namespace mn
 	 * @param[in]  allocator  The allocator to be used in the returns string
 	 */
 	MN_EXPORT Str
-	path_absolute(const char* path, Allocator allocator = allocator_top());
+	path_absolute(const char *path, Allocator allocator = allocator_top());
 
 	/**
 	 * @brief      Returns the absolute path of the given relative path
@@ -170,16 +169,16 @@ namespace mn
 	 * @param[in]  allocator  The allocator to be used in the returns string
 	 */
 	inline static Str
-	path_absolute(const Str& path, Allocator allocator = allocator_top())
+	path_absolute(const Str &path, Allocator allocator = allocator_top())
 	{
 		return path_absolute(path.ptr, allocator);
 	}
 
 	MN_EXPORT Str
-	file_directory(const char* path, Allocator allocator = allocator_top());
+	file_directory(const char *path, Allocator allocator = allocator_top());
 
 	inline static Str
-	file_directory(const Str& path, Allocator allocator = allocator_top())
+	file_directory(const Str &path, Allocator allocator = allocator_top())
 	{
 		return file_directory(path.ptr, allocator);
 	}
@@ -193,17 +192,17 @@ namespace mn
 		};
 
 		KIND kind;
-		Str  name;
+		Str name;
 	};
 
 	inline static void
-	path_entry_free(Path_Entry& self)
+	path_entry_free(Path_Entry &self)
 	{
 		str_free(self.name);
 	}
 
 	inline static void
-	destruct(Path_Entry& self)
+	destruct(Path_Entry &self)
 	{
 		path_entry_free(self);
 	}
@@ -215,7 +214,7 @@ namespace mn
 	 * @param[in]  allocator  The allocator to be used in the returned buf
 	 */
 	MN_EXPORT Buf<Path_Entry>
-	path_entries(const char* path, Allocator allocator = allocator_top());
+	path_entries(const char *path, Allocator allocator = allocator_top());
 
 	/**
 	 * @brief      Returns the names of the children files/folders of the given path
@@ -224,7 +223,7 @@ namespace mn
 	 * @param[in]  allocator  The allocator to be used in the returned buf
 	 */
 	inline static Buf<Path_Entry>
-	path_entries(const Str& path, Allocator allocator = allocator_top())
+	path_entries(const Str &path, Allocator allocator = allocator_top())
 	{
 		return path_entries(path.ptr, allocator);
 	}
@@ -236,7 +235,7 @@ namespace mn
 	 * @param[in]  dst   The destination
 	 */
 	MN_EXPORT bool
-	file_copy(const char* src, const char* dst);
+	file_copy(const char *src, const char *dst);
 
 	/**
 	 * @brief      Copies a file from src to dst
@@ -245,7 +244,7 @@ namespace mn
 	 * @param[in]  dst   The destination
 	 */
 	inline static bool
-	file_copy(const Str& src, const char* dst)
+	file_copy(const Str &src, const char *dst)
 	{
 		return file_copy(src.ptr, dst);
 	}
@@ -257,7 +256,7 @@ namespace mn
 	 * @param[in]  dst   The destination
 	 */
 	inline static bool
-	file_copy(const char* src, const Str& dst)
+	file_copy(const char *src, const Str &dst)
 	{
 		return file_copy(src, dst.ptr);
 	}
@@ -269,7 +268,7 @@ namespace mn
 	 * @param[in]  dst   The destination
 	 */
 	inline static bool
-	file_copy(const Str& src, const Str& dst)
+	file_copy(const Str &src, const Str &dst)
 	{
 		return file_copy(src.ptr, dst.ptr);
 	}
@@ -280,7 +279,7 @@ namespace mn
 	 * @param[in]  path  The file path
 	 */
 	MN_EXPORT bool
-	file_remove(const char* path);
+	file_remove(const char *path);
 
 	/**
 	 * @brief      Removes a file
@@ -288,7 +287,7 @@ namespace mn
 	 * @param[in]  path  The file path
 	 */
 	inline static bool
-	file_remove(const Str& path)
+	file_remove(const Str &path)
 	{
 		return file_remove(path.ptr);
 	}
@@ -300,7 +299,7 @@ namespace mn
 	 * @param[in]  dst   The destination
 	 */
 	MN_EXPORT bool
-	file_move(const char* src, const char* dst);
+	file_move(const char *src, const char *dst);
 
 	/**
 	 * @brief      Moves a file from src to dst
@@ -309,7 +308,7 @@ namespace mn
 	 * @param[in]  dst   The destination
 	 */
 	inline static bool
-	file_move(const Str& src, const char* dst)
+	file_move(const Str &src, const char *dst)
 	{
 		return file_move(src.ptr, dst);
 	}
@@ -321,7 +320,7 @@ namespace mn
 	 * @param[in]  dst   The destination
 	 */
 	inline static bool
-	file_move(const char* src, const Str& dst)
+	file_move(const char *src, const Str &dst)
 	{
 		return file_move(src, dst.ptr);
 	}
@@ -333,28 +332,28 @@ namespace mn
 	 * @param[in]  dst   The destination
 	 */
 	inline static bool
-	file_move(const Str& src, const Str& dst)
+	file_move(const Str &src, const Str &dst)
 	{
 		return file_move(src.ptr, dst.ptr);
 	}
 
 	MN_EXPORT Str
-	file_tmp(const Str& base, const Str& ext, Allocator allocator = allocator_top());
+	file_tmp(const Str &base, const Str &ext, Allocator allocator = allocator_top());
 
 	inline static Str
-	file_tmp(const char* base, const Str& ext, Allocator allocator = allocator_top())
+	file_tmp(const char *base, const Str &ext, Allocator allocator = allocator_top())
 	{
 		return file_tmp(str_lit(base), ext, allocator);
 	}
 
 	inline static Str
-	file_tmp(const Str& base, const char* ext, Allocator allocator = allocator_top())
+	file_tmp(const Str &base, const char *ext, Allocator allocator = allocator_top())
 	{
 		return file_tmp(base, str_lit(ext), allocator);
 	}
 
 	inline static Str
-	file_tmp(const char* base, const char* ext, Allocator allocator = allocator_top())
+	file_tmp(const char *base, const char *ext, Allocator allocator = allocator_top())
 	{
 		return file_tmp(str_lit(base), str_lit(ext), allocator);
 	}
@@ -365,7 +364,7 @@ namespace mn
 	 * @param[in]  path  The folder path
 	 */
 	MN_EXPORT bool
-	folder_make(const char* path);
+	folder_make(const char *path);
 
 	/**
 	 * @brief      Creates a new folder
@@ -373,7 +372,7 @@ namespace mn
 	 * @param[in]  path  The folder path
 	 */
 	inline static bool
-	folder_make(const Str& path)
+	folder_make(const Str &path)
 	{
 		return folder_make(path.ptr);
 	}
@@ -384,7 +383,7 @@ namespace mn
 	 * @param[in]  path  The folder path
 	 */
 	MN_EXPORT bool
-	folder_remove(const char* path);
+	folder_remove(const char *path);
 
 	/**
 	 * @brief      Removes a folder and the contained files/folders
@@ -392,7 +391,7 @@ namespace mn
 	 * @param[in]  path  The folder path
 	 */
 	inline static bool
-	folder_remove(const Str& path)
+	folder_remove(const Str &path)
 	{
 		return folder_remove(path.ptr);
 	}
@@ -404,7 +403,7 @@ namespace mn
 	 * @param[in]  dst   The destination
 	 */
 	MN_EXPORT bool
-	folder_copy(const char* src, const char* dst);
+	folder_copy(const char *src, const char *dst);
 
 	/**
 	 * @brief      Copies a folder and the contained files/folders from src to dst
@@ -413,7 +412,7 @@ namespace mn
 	 * @param[in]  dst   The destination
 	 */
 	inline static bool
-	folder_copy(const Str& src, const char* dst)
+	folder_copy(const Str &src, const char *dst)
 	{
 		return folder_copy(src.ptr, dst);
 	}
@@ -425,7 +424,7 @@ namespace mn
 	 * @param[in]  dst   The destination
 	 */
 	inline static bool
-	folder_copy(const char* src, const Str& dst)
+	folder_copy(const char *src, const Str &dst)
 	{
 		return folder_copy(src, dst.ptr);
 	}
@@ -437,7 +436,7 @@ namespace mn
 	 * @param[in]  dst   The destination
 	 */
 	inline static bool
-	folder_copy(const Str& src, const Str& dst)
+	folder_copy(const Str &src, const Str &dst)
 	{
 		return folder_copy(src.ptr, dst.ptr);
 	}
@@ -449,7 +448,7 @@ namespace mn
 	 * @param[in]  dst   The destination
 	 */
 	inline static bool
-	folder_move(const char* src, const char* dst)
+	folder_move(const char *src, const char *dst)
 	{
 		if (folder_copy(src, dst))
 			return folder_remove(src);
@@ -463,7 +462,7 @@ namespace mn
 	 * @param[in]  dst   The destination
 	 */
 	inline static bool
-	folder_move(const Str& src, const char* dst)
+	folder_move(const Str &src, const char *dst)
 	{
 		return folder_move(src.ptr, dst);
 	}
@@ -475,7 +474,7 @@ namespace mn
 	 * @param[in]  dst   The destination
 	 */
 	inline static bool
-	folder_move(const char* src, const Str& dst)
+	folder_move(const char *src, const Str &dst)
 	{
 		return folder_move(src, dst.ptr);
 	}
@@ -487,11 +486,11 @@ namespace mn
 	 * @param[in]  dst   The destination
 	 */
 	inline static bool
-	folder_move(const Str& src, const Str& dst)
+	folder_move(const Str &src, const Str &dst)
 	{
 		return folder_move(src.ptr, dst.ptr);
 	}
 
 	MN_EXPORT Str
 	folder_tmp(Allocator allocator = allocator_top());
-}
+} // namespace mn
