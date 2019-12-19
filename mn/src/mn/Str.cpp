@@ -113,7 +113,7 @@ namespace mn
 	size_t
 	str_find(const Str& self, const Str& target, size_t start)
 	{
-		if (start >= self.count)
+		if (start >= self.count || target.count > self.count)
 			return size_t(-1);
 
 		for (size_t i = start; i <= self.count - target.count; ++i)

@@ -24,8 +24,17 @@ target_link_libraries(example-freq
 		MoustaphaSaad::mn
 )
 
+add_executable(mndoc mndoc.cpp)
+target_link_libraries(mndoc
+	PRIVATE
+		MoustaphaSaad::mn
+)
 add_executable(example-ipc-mutex1 example-ipc-mutex1.cpp)
 target_link_libraries(example-ipc-mutex1
+	PRIVATE
+		MoustaphaSaad::mn
+)
+
 	PRIVATE
 		MoustaphaSaad::mn
 )
