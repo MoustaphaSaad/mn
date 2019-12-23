@@ -18,7 +18,7 @@ namespace fmt
 		template <typename FormatContext>
 		auto format(const mn::Str &str, FormatContext &ctx) {
 			if (str.count == 0)
-				return ctx.begin();
+				return ctx.out();
 			return format_to(ctx.out(), "{}", str.ptr);
 		}
 	};
@@ -38,7 +38,7 @@ namespace fmt
 				format_to(ctx.out(), "{}: {}", i, buf[i]);
 			}
 			format_to(ctx.out(), " }}");
-			return ctx.begin();
+			return ctx.out();
 		}
 	};
 
@@ -59,7 +59,7 @@ namespace fmt
 				++i;
 			}
 			format_to(ctx.out(), " }}");
-			return ctx.begin();
+			return ctx.out();
 		}
 	};
 }
