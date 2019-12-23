@@ -132,7 +132,7 @@ if(WIN32)
 	)
 	target_compile_options(mn
 		PRIVATE
-			/WX /W4
+			/W4
 	)
 elseif(UNIX)
 	target_link_libraries(mn
@@ -145,7 +145,7 @@ elseif(UNIX)
 	)
 	target_compile_options(mn
 		PRIVATE
-			-Wall -Werror
+			-Wall
 	)
 endif()
 
