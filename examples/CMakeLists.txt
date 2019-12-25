@@ -29,14 +29,3 @@ target_link_libraries(mndoc
 	PRIVATE
 		MoustaphaSaad::mn
 )
-add_executable(example-ipc-mutex1 example-ipc-mutex1.cpp)
-target_link_libraries(example-ipc-mutex1
-	PRIVATE
-		MoustaphaSaad::mn
-)
-
-add_executable(example-ipc-mutex2 example-ipc-mutex2.cpp)
-target_link_libraries(example-ipc-mutex2
-	PRIVATE
-		MoustaphaSaad::mn
-)
