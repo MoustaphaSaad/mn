@@ -111,7 +111,7 @@ namespace mn::ipc
 	{
 		if(self->shared_mtx->atomic_rc.fetch_sub(1) <= 1)
 		{
-			int res = pthread_mutex_destroy(&self->shared_mtx->mtx);
+			[[maybe_unused]] int res = pthread_mutex_destroy(&self->shared_mtx->mtx);
 			assert(res == 0);
 
 			res = munmap(self->shared_mtx, sizeof(self->shared_mtx));
@@ -129,7 +129,7 @@ namespace mn::ipc
 		}
 		else
 		{
-			int res = munmap(self->shared_mtx, sizeof(self->shared_mtx));
+			[[maybe_unused]] int res = munmap(self->shared_mtx, sizeof(self->shared_mtx));
 			assert(res == 0);
 
 			res = close(self->shm_fd);
