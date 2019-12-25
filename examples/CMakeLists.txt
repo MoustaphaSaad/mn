@@ -35,10 +35,6 @@ target_link_libraries(example-ipc-mutex1
 		MoustaphaSaad::mn
 )
 
-	PRIVATE
-		MoustaphaSaad::mn
-)
-
 add_executable(example-ipc-mutex2 example-ipc-mutex2.cpp)
 target_link_libraries(example-ipc-mutex2
 	PRIVATE
