@@ -2,14 +2,14 @@
 #include "mn/Str.h"
 #include "mn/Memory.h"
 
-#include <errno.h> // errno, ENOENT
-#include <fcntl.h> // O_RDWR, O_CREATE
-#include <linux/limits.h> // NAME_MAX
-#include <sys/mman.h> // shm_open, shm_unlink, mmap, munmap,
-                      // PROT_READ, PROT_WRITE, MAP_SHARED, MAP_FAILED
-#include <unistd.h> // ftruncate, close
+#include <errno.h>
+#include <fcntl.h>
+#include <linux/limits.h>
+#include <sys/mman.h>
+#include <unistd.h>
 #include <pthread.h>
 #include <atomic>
+#include <assert.h>
 
 namespace mn::ipc
 {
@@ -27,8 +27,8 @@ namespace mn::ipc
 		bool created;
 	};
 
-	Mutex_Result
-	mutex_new(const Str& name, bool immediate_lock)
+	Mutex
+	mutex_new(const Str& name)
 	{
 		errno = 0;
 		// Open existing shared memory object, or create one.
@@ -36,7 +36,6 @@ namespace mn::ipc
 		// for later initialization of pthread mutex.
 		int shm_fd = shm_open(name.ptr, O_RDWR, 0660);
 		bool created = false;
-		bool locked = false;
 
 		// mutex was not created before, create it!
 		if(errno == ENOENT)
@@ -46,11 +45,15 @@ namespace mn::ipc
 		}
 
 		if(shm_fd == -1)
-			return Mutex_Result{};
+			return nullptr;
 
 		// Truncate shared memory segment so it would contain IShared_Mutex
 		if (ftruncate(shm_fd, sizeof(IShared_Mutex)) != 0)
-			return Mutex_Result{};
+		{
+			close(shm_fd);
+			shm_unlink(name.ptr);
+			return nullptr;
+		}
 
 		// Map pthread mutex into the shared memory.
 		void *addr = mmap(
@@ -63,7 +66,11 @@ namespace mn::ipc
 		);
 
 		if(addr == MAP_FAILED)
-			return Mutex_Result{};
+		{
+			close(shm_fd);
+			shm_unlink(name.ptr);
+			return nullptr;
+		}
 
 		auto shared_mtx = (IShared_Mutex*)addr;
 
@@ -71,25 +78,19 @@ namespace mn::ipc
 		if(created)
 		{
 			pthread_mutexattr_t attr{};
-			if(pthread_mutexattr_init(&attr))
-				return Mutex_Result{};
+			[[maybe_unused]] auto mtx_err = pthread_mutexattr_init(&attr);
+			assert(mtx_err == 0);
 
-			if(pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED))
-				return Mutex_Result{};
+			mtx_err = pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED);
+			assert(mtx_err == 0);
 
-			if(pthread_mutexattr_setrobust(&attr, PTHREAD_MUTEX_ROBUST))
-				return Mutex_Result{};
+			mtx_err = pthread_mutexattr_setrobust(&attr, PTHREAD_MUTEX_ROBUST);
+			assert(mtx_err == 0);
 
-			if(pthread_mutex_init(&shared_mtx->mtx, &attr))
-				return Mutex_Result{};
+			mtx_err = pthread_mutex_init(&shared_mtx->mtx, &attr);
+			assert(mtx_err == 0);
 
 			shared_mtx->atomic_rc = 1;
-
-			if(immediate_lock)
-			{
-				pthread_mutex_lock(&shared_mtx->mtx);
-				locked = true;
-			}
 		}
 		else
 		{
@@ -102,7 +103,7 @@ namespace mn::ipc
 		self->name = clone(name);
 		self->created = created;
 
-		return Mutex_Result{self, locked};
+		return self;
 	}
 
 	void
