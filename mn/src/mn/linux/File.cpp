@@ -182,7 +182,7 @@ namespace mn
 		// NONE which is available only in O_CREAT mode
 		switch(share_mode)
 		{
-            case SHARE_MODE::NONE:
+			case SHARE_MODE::NONE:
 				if(flags & O_CREAT)
 					flags |= O_EXCL;
 				break;
@@ -269,5 +269,29 @@ namespace mn
 	{
 		off64_t offset = 0;
 		return ::lseek64(self->linux_handle, offset, SEEK_END) != -1;
+	}
+
+	bool
+	file_lock(File self, int64_t offset, int64_t size)
+	{
+		assert(offset >= 0 && size >= 0);
+		flock fl{};
+		fl.l_type = F_WRLCK;
+		fl.l_whence = SEEK_SET;
+		fl.l_start = offset;
+		fl.l_len = size;
+		return fcntl(self->linux_handle, F_SETLK, &fl) != -1;
+	}
+
+	bool
+	file_unlock(File self, int64_t offset, int64_t size)
+	{
+		assert(offset >= 0 && size >= 0);
+		flock fl{};
+		fl.l_type = F_UNLCK;
+		fl.l_whence = SEEK_SET;
+		fl.l_start = offset;
+		fl.l_len = size;
+		return fcntl(self->linux_handle, F_SETLK, &fl) != -1;
 	}
 }

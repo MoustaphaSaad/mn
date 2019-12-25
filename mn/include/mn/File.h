@@ -3,7 +3,6 @@
 #include "mn/Exports.h"
 #include "mn/Stream.h"
 #include "mn/Str.h"
-#undef DELETE
 
 namespace mn
 {
@@ -216,9 +215,12 @@ namespace mn
 	MN_EXPORT bool
 	file_cursor_move_to_end(File handle);
 
-	MN_EXPORT void
+	// specify a region of the file to be locked
+	// locks can't overlap -> file_lock will fail
+	// you can lock a region beyond EOF to coordinate record addition to a file
+	MN_EXPORT bool
 	file_lock(File handle, int64_t offset, int64_t size);
 
-	MN_EXPORT void
+	MN_EXPORT bool
 	file_unlock(File handle, int64_t offset, int64_t size);
 }

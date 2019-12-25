@@ -439,7 +439,7 @@ namespace mn
 		return SetFilePointerEx(self->winos_handle, offset, &position, FILE_END);
 	}
 
-	void
+	bool
 	file_lock(File self, int64_t offset, int64_t size)
 	{
 		assert(offset >= 0 && size >= 0);
@@ -447,11 +447,10 @@ namespace mn
 		DWORD offset_high = (DWORD)(offset & (0xFFFFFFFF00000000));
 		DWORD size_low  = (DWORD)(size & (0x00000000FFFFFFFF));
 		DWORD size_high = (DWORD)(size & (0xFFFFFFFF00000000));
-		[[maybe_unused]] BOOL res = LockFile(self->winos_handle, offset_low, offset_high, size_low, size_high);
-		assert(res == TRUE);
+		return LockFile(self->winos_handle, offset_low, offset_high, size_low, size_high);
 	}
 
-	void
+	bool
 	file_unlock(File self, int64_t offset, int64_t size)
 	{
 		assert(offset >= 0 && size >= 0);
@@ -459,7 +458,6 @@ namespace mn
 		DWORD offset_high = (DWORD)(offset & (0xFFFFFFFF00000000));
 		DWORD size_low  = (DWORD)(size & (0x00000000FFFFFFFF));
 		DWORD size_high = (DWORD)(size & (0xFFFFFFFF00000000));
-		[[maybe_unused]] BOOL res = UnlockFile(self->winos_handle, offset_low, offset_high, size_low, size_high);
-		assert(res == TRUE);
+		return UnlockFile(self->winos_handle, offset_low, offset_high, size_low, size_high);
 	}
 }
