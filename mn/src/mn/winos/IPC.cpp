@@ -12,17 +12,17 @@
 namespace mn::ipc
 {
 	// API
-	Mutex_Result
-	mutex_new(const Str& name, bool immediate_lock)
+	Mutex
+	mutex_new(const Str& name)
 	{
 		auto os_str = to_os_encoding(name, allocator_top());
 		mn_defer(mn::free(os_str));
 
-		auto handle = (Mutex)CreateMutex(0, immediate_lock, (LPCWSTR)os_str.ptr);
+		auto handle = CreateMutex(0, false, (LPCWSTR)os_str.ptr);
 		if (handle == INVALID_HANDLE_VALUE)
-			return Mutex_Result{};
+			return nullptr;
 
-		return Mutex_Result{ handle, GetLastError() != ERROR_ALREADY_EXISTS };
+		return (Mutex)handle;
 	}
 
 	void

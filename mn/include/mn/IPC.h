@@ -7,12 +7,6 @@ namespace mn::ipc
 {
 	typedef struct IMutex *Mutex;
 
-	struct Mutex_Result
-	{
-		Mutex mtx;
-		bool locked;
-	};
-
 	enum class LOCK_RESULT
 	{
 		OBTAINED,
@@ -20,13 +14,13 @@ namespace mn::ipc
 		FAILED
 	};
 
-	MN_EXPORT Mutex_Result
-	mutex_new(const Str& name, bool immediate_lock = false);
+	MN_EXPORT Mutex
+	mutex_new(const Str& name);
 
-	inline static Mutex_Result
-	mutex_new(const char* name, bool immediate_lock = false)
+	inline static Mutex
+	mutex_new(const char* name)
 	{
-		return mutex_new(str_lit(name), immediate_lock);
+		return mutex_new(str_lit(name));
 	}
 
 	MN_EXPORT void
