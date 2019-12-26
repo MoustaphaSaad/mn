@@ -29,3 +29,9 @@ target_link_libraries(mndoc
 	PRIVATE
 		MoustaphaSaad::mn
 )
+
+add_executable(example-worker example-worker.cpp)
+target_link_libraries(example-worker
+	PRIVATE
+		MoustaphaSaad::mn
+)

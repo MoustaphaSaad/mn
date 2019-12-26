@@ -37,6 +37,7 @@ set(HEADER_FILES
 	include/mn/Deque.h
 	include/mn/Result.h
 	include/mn/IPC.h
+	include/mn/Worker.h
 	include/utf8proc/utf8proc.h
 )
 
@@ -58,6 +59,7 @@ set(SOURCE_FILES
 	src/mn/Stream.cpp
 	src/mn/Rune.cpp
 	src/mn/Context.cpp
+	src/mn/Worker.cpp
 	src/utf8proc/utf8proc.cpp
 )
 
