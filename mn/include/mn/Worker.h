@@ -40,7 +40,7 @@ namespace mn
 
 	// fabric_new creates a group of workers
 	MN_EXPORT Fabric
-	fabric_new(size_t worker_count);
+	fabric_new(size_t worker_count = 0, uint32_t blocking_threshold_in_ms = 0, size_t put_aside_worker_count = 0);
 
 	// fabric_free stops and frees the group of workers
 	MN_EXPORT void
