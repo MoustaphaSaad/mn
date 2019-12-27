@@ -1,4 +1,4 @@
-#include "mn/Worker.h"
+#include "mn/Fabric.h"
 #include "mn/Memory.h"
 #include "mn/Ring.h"
 #include "mn/Thread.h"

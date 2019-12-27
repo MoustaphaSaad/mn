@@ -1,5 +1,5 @@
 #include <mn/IO.h>
-#include <mn/Worker.h>
+#include <mn/Fabric.h>
 #include <mn/Thread.h>
 
 int main()
