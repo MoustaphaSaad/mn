@@ -44,6 +44,12 @@ namespace mn
 	MN_EXPORT Worker
 	worker_local();
 
+	MN_EXPORT void
+	worker_block_ahead();
+
+	MN_EXPORT void
+	worker_block_clear();
+
 
 	// fabric
 	typedef struct IFabric* Fabric;

@@ -11,10 +11,13 @@
 
 namespace mn
 {
+	constexpr static auto DEFAULT_COOP_BLOCKING_THRESHOLD = 16;
+	constexpr static auto DEFAULT_EXTR_BLOCKING_THRESHOLD = 10000;
+
 	inline static void
 	_yield()
 	{
-		thread_sleep(0);
+		thread_sleep(1);
 	}
 
 	using Job = Task<void()>;
@@ -33,6 +36,7 @@ namespace mn
 
 		Fabric fabric;
 		std::atomic<uint64_t> atomic_job_start_time_in_ms;
+		std::atomic<bool> atomic_block_flag;
 
 		Ring<Job> job_q;
 		Mutex job_q_mtx;
@@ -219,6 +223,7 @@ namespace mn
 
 		self->fabric = fabric;
 		self->atomic_job_start_time_in_ms.store(0);
+		self->atomic_block_flag.store(false);
 
 		self->job_q = stolen_jobs;
 		self->job_q_mtx = mutex_new("worker mutex");
@@ -232,7 +237,7 @@ namespace mn
 	// Fabric
 	struct IFabric
 	{
-		uint32_t blocking_threshold;
+		uint32_t coop_blocking_threshold;
 		size_t put_aside_worker_count;
 
 		Buf<Worker> workers;
@@ -287,11 +292,13 @@ namespace mn
 			for(size_t i = 0; i < self->workers.count; ++i)
 			{
 				auto job_start_time = self->workers[i]->atomic_job_start_time_in_ms.load();
+				auto inside_block_op = self->workers[i]->atomic_block_flag.load();
 				if (job_start_time == 0)
 					continue;
 
 				auto job_run_time = time_in_millis() - job_start_time;
-				if (job_run_time > self->blocking_threshold)
+				if ((job_run_time > self->coop_blocking_threshold && inside_block_op) ||
+					(job_run_time > DEFAULT_EXTR_BLOCKING_THRESHOLD))
 					buf_push(blocking_workers, Blocking_Worker{ self->workers[i], i });
 			}
 			mutex_read_unlock(self->workers_mtx);
@@ -348,7 +355,7 @@ namespace mn
 			buf_clear(blocking_workers);
 
 			// get some rest sysmon, you deserve it
-			thread_sleep(self->blocking_threshold);
+			thread_sleep(1);
 		}
 	}
 
@@ -381,6 +388,22 @@ namespace mn
 		return LOCAL_WORKER;
 	}
 
+	void
+	worker_block_ahead()
+	{
+		if (LOCAL_WORKER == nullptr)
+			return;
+		LOCAL_WORKER->atomic_block_flag.store(true);
+	}
+
+	void
+	worker_block_clear()
+	{
+		if (LOCAL_WORKER == nullptr)
+			return;
+		LOCAL_WORKER->atomic_block_flag.store(false);
+	}
+
 
 	// fabric
 	Fabric
@@ -391,7 +414,7 @@ namespace mn
 		if (workers_count == 0)
 			workers_count = std::thread::hardware_concurrency();
 
-		self->blocking_threshold = blocking_threshold_in_ms;
+		self->coop_blocking_threshold = blocking_threshold_in_ms;
 
 		self->put_aside_worker_count = put_aside_worker_count;
 		if(self->put_aside_worker_count == 0)
@@ -414,22 +437,10 @@ namespace mn
 
 		self->atomic_sysmon_close.store(false);
 
-		auto thread_starttime = time_in_millis();
 		self->sysmon = thread_new(_sysmon_main, self, "fabric sysmon thread");
-		auto thread_endtime = time_in_millis();
 
-		auto thread_cost = thread_endtime - thread_starttime;
-		if(self->blocking_threshold == 0)
-		{
-			if(thread_cost == 0)
-			{
-				self->blocking_threshold = 1000;
-			}
-			else
-			{
-				self->blocking_threshold = uint32_t(thread_cost) * 5;
-			}
-		}
+		if(self->coop_blocking_threshold == 0)
+			self->coop_blocking_threshold = DEFAULT_COOP_BLOCKING_THRESHOLD;
 
 		return self;
 	}

@@ -1,5 +1,6 @@
 #include "mn/Thread.h"
 #include "mn/Memory.h"
+#include "mn/Fabric.h"
 
 #define NOMINMAX
 #define WIN32_LEAN_AND_MEAN
@@ -52,7 +53,9 @@ namespace mn
 	void
 	mutex_lock(Mutex self)
 	{
+		worker_block_ahead();
 		EnterCriticalSection(&self->cs);
+		worker_block_clear();
 	}
 
 	void
@@ -94,7 +97,9 @@ namespace mn
 	void
 	mutex_read_lock(Mutex_RW self)
 	{
+		worker_block_ahead();
 		AcquireSRWLockShared(&self->lock);
+		worker_block_clear();
 	}
 
 	void
@@ -106,7 +111,9 @@ namespace mn
 	void
 	mutex_write_lock(Mutex_RW self)
 	{
+		worker_block_ahead();
 		AcquireSRWLockExclusive(&self->lock);
+		worker_block_clear();
 	}
 
 	void
@@ -166,11 +173,13 @@ namespace mn
 	void
 	thread_join(Thread self)
 	{
+		worker_block_ahead();
 		if(self->handle)
 		{
 			[[maybe_unused]] DWORD result = WaitForSingleObject(self->handle, INFINITE);
 			assert(result == WAIT_OBJECT_0);
 		}
+		worker_block_clear();
 	}
 
 	void
@@ -212,13 +221,18 @@ namespace mn
 	void
 	cond_var_wait(Cond_Var self, Mutex mtx)
 	{
+		worker_block_ahead();
 		SleepConditionVariableCS(&self->cv, &mtx->cs, INFINITE);
+		worker_block_clear();
 	}
 
 	Cond_Var_Wake_State
 	cond_var_wait_timeout(Cond_Var self, Mutex mtx, uint32_t millis)
 	{
+		worker_block_ahead();
 		auto res = SleepConditionVariableCS(&self->cv, &mtx->cs, millis);
+		worker_block_clear();
+
 		if (res)
 			return Cond_Var_Wake_State::SIGNALED;
 
@@ -231,13 +245,18 @@ namespace mn
 	void
 	cond_var_read_wait(Cond_Var self, Mutex_RW mtx)
 	{
+		worker_block_ahead();
 		SleepConditionVariableSRW(&self->cv, &mtx->lock, INFINITE, CONDITION_VARIABLE_LOCKMODE_SHARED);
+		worker_block_clear();
 	}
 
 	Cond_Var_Wake_State
 	cond_var_read_wait_timeout(Cond_Var self, Mutex_RW mtx, uint32_t millis)
 	{
+		worker_block_ahead();
 		auto res = SleepConditionVariableSRW(&self->cv, &mtx->lock, millis, CONDITION_VARIABLE_LOCKMODE_SHARED);
+		worker_block_clear();
+
 		if (res)
 			return Cond_Var_Wake_State::SIGNALED;
 
@@ -250,13 +269,18 @@ namespace mn
 	void
 	cond_var_write_wait(Cond_Var self, Mutex_RW mtx)
 	{
+		worker_block_ahead();
 		SleepConditionVariableSRW(&self->cv, &mtx->lock, INFINITE, 0);
+		worker_block_clear();
 	}
 
 	Cond_Var_Wake_State
 	cond_var_write_wait_timeout(Cond_Var self, Mutex_RW mtx, uint32_t millis)
 	{
+		worker_block_ahead();
 		auto res = SleepConditionVariableSRW(&self->cv, &mtx->lock, millis, 0);
+		worker_block_clear();
+
 		if (res)
 			return Cond_Var_Wake_State::SIGNALED;
 
@@ -275,55 +299,6 @@ namespace mn
 	void
 	cond_var_notify_all(Cond_Var self)
 	{
-		WakeAllConditionVariable(&self->cv);
-	}
-
-
-	//Limbo
-	struct ILimbo
-	{
-		CRITICAL_SECTION cs;
-		CONDITION_VARIABLE cv;
-		const char* name;
-	};
-
-	Limbo
-	limbo_new(const char* name)
-	{
-		Limbo self = alloc<ILimbo>();
-		InitializeCriticalSectionAndSpinCount(&self->cs, 4096);
-		self->cv = CONDITION_VARIABLE_INIT;
-		self->name = name;
-		return self;
-	}
-
-	void
-	limbo_free(Limbo self)
-	{
-		DeleteCriticalSection(&self->cs);
-		free(self);
-	}
-
-	void
-	limbo_lock(Limbo self, Limbo_Predicate* pred)
-	{
-		EnterCriticalSection(&self->cs);
-
-		while(pred->should_wake() == false)
-			SleepConditionVariableCS(&self->cv, &self->cs, INFINITE);
-	}
-
-	void
-	limbo_unlock_one(Limbo self)
-	{
-		LeaveCriticalSection(&self->cs);
-		WakeConditionVariable(&self->cv);
-	}
-
-	void
-	limbo_unlock_all(Limbo self)
-	{
-		LeaveCriticalSection(&self->cs);
 		WakeAllConditionVariable(&self->cv);
 	}
 }
