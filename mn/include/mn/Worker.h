@@ -3,6 +3,9 @@
 #include "mn/Exports.h"
 #include "mn/Task.h"
 
+#include <atomic>
+#include <assert.h>
+
 namespace mn
 {
 	// Worker
@@ -65,4 +68,22 @@ namespace mn
 	{
 		worker_task_do(fabric_worker_next(self), Task<void()>::make(std::forward<TFunc&&>(f)));
 	}
+
+	typedef std::atomic<int32_t> Waitgroup;
+
+	inline static void
+	waitgroup_add(Waitgroup& self, int32_t i)
+	{
+		self.fetch_add(i);
+	}
+
+	inline static void
+	waitgroup_done(Waitgroup& self)
+	{
+		[[maybe_unused]] int prev = self.fetch_sub(1);
+		assert(prev >= 0);
+	}
+
+	MN_EXPORT void
+	waitgroup_wait(Waitgroup& self);
 }
