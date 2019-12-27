@@ -204,7 +204,7 @@ namespace mn
 		auto start_time = time_in_millis();
 		while (func() == false)
 		{
-			auto state = cond_var_wait_timeout(self, mtx);
+			auto state = cond_var_wait_timeout(self, mtx, millis);
 			if (state == Cond_Var_Wake_State::SIGNALED)
 			{
 				return true;
@@ -243,7 +243,7 @@ namespace mn
 		auto start_time = time_in_millis();
 		while (func() == false)
 		{
-			auto state = cond_var_read_wait_timeout(self, mtx);
+			auto state = cond_var_read_wait_timeout(self, mtx, millis);
 			if (state == Cond_Var_Wake_State::SIGNALED)
 			{
 				return true;
@@ -282,7 +282,7 @@ namespace mn
 		auto start_time = time_in_millis();
 		while (func() == false)
 		{
-			auto state = cond_var_write_wait_timeout(self, mtx);
+			auto state = cond_var_write_wait_timeout(self, mtx, millis);
 			if (state == Cond_Var_Wake_State::SIGNALED)
 			{
 				return true;

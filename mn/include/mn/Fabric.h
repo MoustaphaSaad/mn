@@ -97,7 +97,7 @@ namespace mn
 	inline static void
 	go(Worker worker, TFunc&& fn)
 	{
-		worker_task_do(w, Task<void()>::make(std::forward<TFunc>(fn)));
+		worker_task_do(worker, Task<void()>::make(std::forward<TFunc>(fn)));
 	}
 
 	template<typename TFunc>
