@@ -1,12 +1,8 @@
 #include "mn/Fabric.h"
 #include "mn/Memory.h"
-#include "mn/Ring.h"
-#include "mn/Thread.h"
 #include "mn/Pool.h"
 #include "mn/Buf.h"
-#include "mn/Defer.h"
 #include "mn/Result.h"
-#include "mn/IO.h"
 
 #include <atomic>
 #include <emmintrin.h>
@@ -15,13 +11,6 @@
 
 namespace mn
 {
-	inline static uint64_t
-	_time_in_ms()
-	{
-		auto tp = std::chrono::high_resolution_clock::now().time_since_epoch();
-		return std::chrono::duration_cast<std::chrono::milliseconds>(tp).count();
-	}
-
 	inline static void
 	_yield()
 	{
@@ -51,6 +40,7 @@ namespace mn
 		std::atomic<STATE> atomic_state;
 		Thread thread;
 	};
+	thread_local Worker LOCAL_WORKER = nullptr;
 
 	inline static size_t
 	_worker_steal_jobs(Worker self, Job* jobs, size_t jobs_count)
@@ -129,7 +119,7 @@ namespace mn
 	inline static void
 	_worker_job_run(Worker self, Job &job)
 	{
-		self->atomic_job_start_time_in_ms.store(_time_in_ms());
+		self->atomic_job_start_time_in_ms.store(time_in_millis());
 		job();
 		self->atomic_job_start_time_in_ms.store(0);
 		task_free(job);
@@ -139,6 +129,7 @@ namespace mn
 	_worker_main(void* worker)
 	{
 		auto self = (Worker)worker;
+		LOCAL_WORKER = self;
 
 		while(true)
 		{
@@ -168,6 +159,8 @@ namespace mn
 				assert(false && "unreachable");
 			}
 		}
+
+		LOCAL_WORKER = nullptr;
 	}
 
 	inline static void
@@ -297,7 +290,7 @@ namespace mn
 				if (job_start_time == 0)
 					continue;
 
-				auto job_run_time = _time_in_ms() - job_start_time;
+				auto job_run_time = time_in_millis() - job_start_time;
 				if (job_run_time > self->blocking_threshold)
 					buf_push(blocking_workers, Blocking_Worker{ self->workers[i], i });
 			}
@@ -351,9 +344,6 @@ namespace mn
 			for (auto blocking_worker : blocking_workers)
 				buf_push(self->sleepy_side_workers, blocking_worker.worker);
 
-			if (blocking_workers.count > 0)
-				mn::print("{} switchroooo\n", blocking_workers.count);
-
 			// clear the blocking workers list
 			buf_clear(blocking_workers);
 
@@ -384,6 +374,13 @@ namespace mn
 		ring_push_back(self->job_q, task);
 		mutex_unlock(self->job_q_mtx);
 	}
+
+	Worker
+	worker_local()
+	{
+		return LOCAL_WORKER;
+	}
+
 
 	// fabric
 	Fabric
@@ -417,9 +414,9 @@ namespace mn
 
 		self->atomic_sysmon_close.store(false);
 
-		auto thread_starttime = _time_in_ms();
+		auto thread_starttime = time_in_millis();
 		self->sysmon = thread_new(_sysmon_main, self, "fabric sysmon thread");
-		auto thread_endtime = _time_in_ms();
+		auto thread_endtime = time_in_millis();
 
 		auto thread_cost = thread_endtime - thread_starttime;
 		if(self->blocking_threshold == 0)
@@ -511,6 +508,15 @@ namespace mn
 		mutex_read_unlock(self->workers_mtx);
 
 		return worker;
+	}
+
+	Fabric
+	fabric_local()
+	{
+		Fabric res = nullptr;
+		if (auto w = worker_local())
+			res = w->fabric;
+		return res;
 	}
 
 	// Waitgroup

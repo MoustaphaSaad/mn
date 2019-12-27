@@ -7,6 +7,8 @@
 
 #include <assert.h>
 
+#include <chrono>
+
 namespace mn
 {
 	struct IMutex
@@ -175,6 +177,105 @@ namespace mn
 	thread_sleep(uint32_t milliseconds)
 	{
 		Sleep(DWORD(milliseconds));
+	}
+
+
+	// time
+	uint64_t
+	time_in_millis()
+	{
+		auto tp = std::chrono::high_resolution_clock::now().time_since_epoch();
+		return std::chrono::duration_cast<std::chrono::milliseconds>(tp).count();
+	}
+
+
+	// Condition Variable
+	struct ICond_Var
+	{
+		CONDITION_VARIABLE cv;
+	};
+
+	Cond_Var
+	cond_var_new()
+	{
+		auto self = alloc<ICond_Var>();
+		InitializeConditionVariable(&self->cv);
+		return self;
+	}
+
+	void
+	cond_var_free(Cond_Var self)
+	{
+		mn::free(self);
+	}
+
+	void
+	cond_var_wait(Cond_Var self, Mutex mtx)
+	{
+		SleepConditionVariableCS(&self->cv, &mtx->cs, INFINITE);
+	}
+
+	Cond_Var_Wake_State
+	cond_var_wait_timeout(Cond_Var self, Mutex mtx, uint32_t millis)
+	{
+		auto res = SleepConditionVariableCS(&self->cv, &mtx->cs, millis);
+		if (res)
+			return Cond_Var_Wake_State::SIGNALED;
+
+		if (GetLastError() == ERROR_TIMEOUT)
+			return Cond_Var_Wake_State::TIMEOUT;
+
+		return Cond_Var_Wake_State::SPURIOUS;
+	}
+
+	void
+	cond_var_read_wait(Cond_Var self, Mutex_RW mtx)
+	{
+		SleepConditionVariableSRW(&self->cv, &mtx->lock, INFINITE, CONDITION_VARIABLE_LOCKMODE_SHARED);
+	}
+
+	Cond_Var_Wake_State
+	cond_var_read_wait_timeout(Cond_Var self, Mutex_RW mtx, uint32_t millis)
+	{
+		auto res = SleepConditionVariableSRW(&self->cv, &mtx->lock, millis, CONDITION_VARIABLE_LOCKMODE_SHARED);
+		if (res)
+			return Cond_Var_Wake_State::SIGNALED;
+
+		if (GetLastError() == ERROR_TIMEOUT)
+			return Cond_Var_Wake_State::TIMEOUT;
+
+		return Cond_Var_Wake_State::SPURIOUS;
+	}
+
+	void
+	cond_var_write_wait(Cond_Var self, Mutex_RW mtx)
+	{
+		SleepConditionVariableSRW(&self->cv, &mtx->lock, INFINITE, 0);
+	}
+
+	Cond_Var_Wake_State
+	cond_var_write_wait_timeout(Cond_Var self, Mutex_RW mtx, uint32_t millis)
+	{
+		auto res = SleepConditionVariableSRW(&self->cv, &mtx->lock, millis, 0);
+		if (res)
+			return Cond_Var_Wake_State::SIGNALED;
+
+		if (GetLastError() == ERROR_TIMEOUT)
+			return Cond_Var_Wake_State::TIMEOUT;
+
+		return Cond_Var_Wake_State::SPURIOUS;
+	}
+
+	void
+	cond_var_notify(Cond_Var self)
+	{
+		WakeConditionVariable(&self->cv);
+	}
+
+	void
+	cond_var_notify_all(Cond_Var self)
+	{
+		WakeAllConditionVariable(&self->cv);
 	}
 
 

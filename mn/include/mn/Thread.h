@@ -156,6 +156,157 @@ namespace mn
 	thread_sleep(uint32_t milliseconds);
 
 
+	// time in milliseonds
+	MN_EXPORT uint64_t
+	time_in_millis();
+
+
+	// Condition Variable
+	typedef struct ICond_Var* Cond_Var;
+
+	enum class Cond_Var_Wake_State
+	{
+		SIGNALED,
+		TIMEOUT,
+		SPURIOUS
+	};
+
+	MN_EXPORT Cond_Var
+	cond_var_new();
+
+	MN_EXPORT void
+	cond_var_free(Cond_Var self);
+
+	inline static void
+	destruct(Cond_Var self)
+	{
+		cond_var_free(self);
+	}
+
+	MN_EXPORT void
+	cond_var_wait(Cond_Var self, Mutex mtx);
+
+	template<typename TFunc>
+	inline static void
+	cond_var_wait(Cond_Var self, Mutex mtx, TFunc&& func)
+	{
+		while (func() == false)
+			cond_var_wait(self, mtx);
+	}
+
+	MN_EXPORT Cond_Var_Wake_State
+	cond_var_wait_timeout(Cond_Var self, Mutex mtx, uint32_t millis);
+
+	template<typename TFunc>
+	inline static bool
+	cond_var_wait_timeout(Cond_Var self, Mutex mtx, uint32_t millis, TFunc&& func)
+	{
+		auto start_time = time_in_millis();
+		while (func() == false)
+		{
+			auto state = cond_var_wait_timeout(self, mtx);
+			if (state == Cond_Var_Wake_State::SIGNALED)
+			{
+				return true;
+			}
+			else if (state == Cond_Var_Wake_State::TIMEOUT)
+			{
+				return false;
+			}
+			else
+			{
+				auto end_time = time_in_millis();
+				if (end_time - start_time >= millis)
+					return false;
+			}
+		}
+	}
+
+	MN_EXPORT void
+	cond_var_read_wait(Cond_Var self, Mutex_RW mtx);
+
+	template<typename TFunc>
+	inline static void
+	cond_var_read_wait(Cond_Var self, Mutex_RW mtx, TFunc&& func)
+	{
+		while (func() == false)
+			cond_var_read_wait(self, mtx);
+	}
+
+	MN_EXPORT Cond_Var_Wake_State
+	cond_var_read_wait_timeout(Cond_Var self, Mutex_RW mtx, uint32_t millis);
+
+	template<typename TFunc>
+	inline static bool
+	cond_var_read_wait_timeout(Cond_Var self, Mutex_RW mtx, uint32_t millis, TFunc&& func)
+	{
+		auto start_time = time_in_millis();
+		while (func() == false)
+		{
+			auto state = cond_var_read_wait_timeout(self, mtx);
+			if (state == Cond_Var_Wake_State::SIGNALED)
+			{
+				return true;
+			}
+			else if (state == Cond_Var_Wake_State::TIMEOUT)
+			{
+				return false;
+			}
+			else
+			{
+				auto end_time = time_in_millis();
+				if (end_time - start_time >= millis)
+					return false;
+			}
+		}
+	}
+
+	MN_EXPORT void
+	cond_var_write_wait(Cond_Var self, Mutex_RW mtx);
+
+	template<typename TFunc>
+	inline static void
+	cond_var_write_wait(Cond_Var self, Mutex_RW mtx, TFunc&& func)
+	{
+		while (func() == false)
+			cond_var_write_wait(self, mtx);
+	}
+
+	MN_EXPORT Cond_Var_Wake_State
+	cond_var_write_wait_timeout(Cond_Var self, Mutex_RW mtx, uint32_t millis);
+
+	template<typename TFunc>
+	inline static bool
+	cond_var_write_wait_timeout(Cond_Var self, Mutex_RW mtx, uint32_t millis, TFunc&& func)
+	{
+		auto start_time = time_in_millis();
+		while (func() == false)
+		{
+			auto state = cond_var_write_wait_timeout(self, mtx);
+			if (state == Cond_Var_Wake_State::SIGNALED)
+			{
+				return true;
+			}
+			else if (state == Cond_Var_Wake_State::TIMEOUT)
+			{
+				return false;
+			}
+			else
+			{
+				auto end_time = time_in_millis();
+				if (end_time - start_time >= millis)
+					return false;
+			}
+		}
+	}
+
+	MN_EXPORT void
+	cond_var_notify(Cond_Var self);
+
+	MN_EXPORT void
+	cond_var_notify_all(Cond_Var self);
+
+
 	//Condition Variable + Mutex Combo
 	struct Limbo_Predicate
 	{
