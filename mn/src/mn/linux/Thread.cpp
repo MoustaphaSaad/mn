@@ -241,30 +241,6 @@ namespace mn
 	}
 
 	void
-	cond_var_read_wait(Cond_Var self, Mutex_RW mtx)
-	{
-		panic("cond_var_read_wait: pthreads doesn't support this operation");
-	}
-
-	Cond_Var_Wake_State
-	cond_var_read_wait_timeout(Cond_Var self, Mutex_RW mtx, uint32_t millis)
-	{
-		panic("cond_var_read_wait_timeout: pthreads doesn't support this operation");
-	}
-
-	void
-	cond_var_write_wait(Cond_Var self, Mutex_RW mtx)
-	{
-		panic("cond_var_write_wait: pthreads doesn't support this operation");
-	}
-
-	Cond_Var_Wake_State
-	cond_var_write_wait_timeout(Cond_Var self, Mutex_RW mtx, uint32_t millis)
-	{
-		panic("cond_var_write_wait_timeout: pthreads doesn't support this operation");
-	}
-
-	void
 	cond_var_notify(Cond_Var self)
 	{
 		pthread_cond_signal(&self->cv);

@@ -243,54 +243,6 @@ namespace mn
 	}
 
 	void
-	cond_var_read_wait(Cond_Var self, Mutex_RW mtx)
-	{
-		worker_block_ahead();
-		SleepConditionVariableSRW(&self->cv, &mtx->lock, INFINITE, CONDITION_VARIABLE_LOCKMODE_SHARED);
-		worker_block_clear();
-	}
-
-	Cond_Var_Wake_State
-	cond_var_read_wait_timeout(Cond_Var self, Mutex_RW mtx, uint32_t millis)
-	{
-		worker_block_ahead();
-		auto res = SleepConditionVariableSRW(&self->cv, &mtx->lock, millis, CONDITION_VARIABLE_LOCKMODE_SHARED);
-		worker_block_clear();
-
-		if (res)
-			return Cond_Var_Wake_State::SIGNALED;
-
-		if (GetLastError() == ERROR_TIMEOUT)
-			return Cond_Var_Wake_State::TIMEOUT;
-
-		return Cond_Var_Wake_State::SPURIOUS;
-	}
-
-	void
-	cond_var_write_wait(Cond_Var self, Mutex_RW mtx)
-	{
-		worker_block_ahead();
-		SleepConditionVariableSRW(&self->cv, &mtx->lock, INFINITE, 0);
-		worker_block_clear();
-	}
-
-	Cond_Var_Wake_State
-	cond_var_write_wait_timeout(Cond_Var self, Mutex_RW mtx, uint32_t millis)
-	{
-		worker_block_ahead();
-		auto res = SleepConditionVariableSRW(&self->cv, &mtx->lock, millis, 0);
-		worker_block_clear();
-
-		if (res)
-			return Cond_Var_Wake_State::SIGNALED;
-
-		if (GetLastError() == ERROR_TIMEOUT)
-			return Cond_Var_Wake_State::TIMEOUT;
-
-		return Cond_Var_Wake_State::SPURIOUS;
-	}
-
-	void
 	cond_var_notify(Cond_Var self)
 	{
 		WakeConditionVariable(&self->cv);
