@@ -1,6 +1,7 @@
 #include "mn/IPC.h"
 #include "mn/File.h"
 #include "mn/Defer.h"
+#include "mn/Fabric.h"
 
 #define NOMINMAX
 #define WIN32_LEAN_AND_MEAN
@@ -36,7 +37,9 @@ namespace mn::ipc
 	mutex_lock(Mutex mtx)
 	{
 		auto self = (HANDLE)mtx;
+		worker_block_ahead();
 		WaitForSingleObject(self, INFINITE);
+		worker_block_clear();
 	}
 
 	LOCK_RESULT

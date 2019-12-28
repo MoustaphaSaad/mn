@@ -1,6 +1,7 @@
 #include "mn/IPC.h"
 #include "mn/Str.h"
 #include "mn/Memory.h"
+#include "mn/Fabric.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -144,6 +145,7 @@ namespace mn::ipc
 	void
 	mutex_lock(Mutex self)
 	{
+		worker_block_ahead();
 		while(true)
 		{
 			int res = pthread_mutex_lock(&self->shared_mtx->mtx);
@@ -158,6 +160,7 @@ namespace mn::ipc
 			assert(res == 0);
 			break;
 		}
+		worker_block_clear();
 	}
 
 	LOCK_RESULT
