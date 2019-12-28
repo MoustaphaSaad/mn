@@ -1,5 +1,6 @@
 #include "mn/File.h"
 #include "mn/OS.h"
+#include "mn/Fabric.h"
 
 #define _LARGEFILE64_SOURCE 1
 #include <sys/sysinfo.h>
@@ -65,13 +66,19 @@ namespace mn
 	size_t
 	IFile::read(Block data)
 	{
-		return ::read(linux_handle, data.ptr, data.size);
+		worker_block_ahead();
+		auto res = ::read(linux_handle, data.ptr, data.size);
+		worker_block_clear();
+		return res;
 	}
 
 	size_t
 	IFile::write(Block data)
 	{
-		return ::write(linux_handle, data.ptr, data.size);
+		worker_block_ahead();
+		auto res = ::write(linux_handle, data.ptr, data.size);
+		worker_block_clear();
+		return res;
 	}
 
 	int64_t

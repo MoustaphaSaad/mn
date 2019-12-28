@@ -2,6 +2,7 @@
 #include "mn/Defer.h"
 #include "mn/Memory.h"
 #include "mn/Thread.h"
+#include "mn/Fabric.h"
 
 #define NOMINMAX
 #define WIN32_LEAN_AND_MEAN
@@ -165,9 +166,12 @@ namespace mn
 		if(winos_handle == file_stdin()->winos_handle)
 			mtx = _mutex_stdin();
 
+		worker_block_ahead();
 		if(mtx) mutex_lock(mtx);
 			ReadFile(winos_handle, data.ptr, DWORD(data.size), &bytes_read, NULL);
+			worker_block_clear();
 		if(mtx) mutex_unlock(mtx);
+
 		return bytes_read;
 	}
 
@@ -182,8 +186,10 @@ namespace mn
 		else if(winos_handle == file_stderr()->winos_handle)
 			mtx = _mutex_stderr();
 
+		worker_block_ahead();
 		if (mtx) mutex_lock(mtx);
 			WriteFile(winos_handle, data.ptr, DWORD(data.size), &bytes_written, NULL);
+			worker_block_clear();
 		if (mtx) mutex_unlock(mtx);
 		return bytes_written;
 	}

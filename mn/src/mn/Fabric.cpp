@@ -36,7 +36,7 @@ namespace mn
 
 		Fabric fabric;
 		std::atomic<uint64_t> atomic_job_start_time_in_ms;
-		std::atomic<bool> atomic_block_flag;
+		std::atomic<uint64_t> atomic_block_start_time_in_ms;
 
 		Ring<Job> job_q;
 		Mutex job_q_mtx;
@@ -223,7 +223,7 @@ namespace mn
 
 		self->fabric = fabric;
 		self->atomic_job_start_time_in_ms.store(0);
-		self->atomic_block_flag.store(false);
+		self->atomic_block_start_time_in_ms.store(0);
 
 		self->job_q = stolen_jobs;
 		self->job_q_mtx = mutex_new("worker mutex");
@@ -291,15 +291,27 @@ namespace mn
 			mutex_read_lock(self->workers_mtx);
 			for(size_t i = 0; i < self->workers.count; ++i)
 			{
-				auto job_start_time = self->workers[i]->atomic_job_start_time_in_ms.load();
-				auto inside_block_op = self->workers[i]->atomic_block_flag.load();
-				if (job_start_time == 0)
-					continue;
+				auto block_start_time = self->workers[i]->atomic_block_start_time_in_ms.load();
+				if(block_start_time != 0)
+				{
+					auto block_time = time_in_millis() - block_start_time;
+					if(block_time > self->coop_blocking_threshold)
+					{
+						buf_push(blocking_workers, Blocking_Worker{ self->workers[i], i });
+						continue;
+					}
+				}
 
-				auto job_run_time = time_in_millis() - job_start_time;
-				if ((job_run_time > self->coop_blocking_threshold && inside_block_op) ||
-					(job_run_time > DEFAULT_EXTR_BLOCKING_THRESHOLD))
-					buf_push(blocking_workers, Blocking_Worker{ self->workers[i], i });
+				auto job_start_time = self->workers[i]->atomic_job_start_time_in_ms.load();
+				if (job_start_time != 0)
+				{
+					auto job_run_time = time_in_millis() - job_start_time;
+					if(job_run_time > DEFAULT_EXTR_BLOCKING_THRESHOLD)
+					{
+						buf_push(blocking_workers, Blocking_Worker{ self->workers[i], i });
+						continue;
+					}
+				}
 			}
 			mutex_read_unlock(self->workers_mtx);
 
@@ -393,7 +405,7 @@ namespace mn
 	{
 		if (LOCAL_WORKER == nullptr)
 			return;
-		LOCAL_WORKER->atomic_block_flag.store(true);
+		LOCAL_WORKER->atomic_block_start_time_in_ms.store(time_in_millis());
 	}
 
 	void
@@ -401,7 +413,7 @@ namespace mn
 	{
 		if (LOCAL_WORKER == nullptr)
 			return;
-		LOCAL_WORKER->atomic_block_flag.store(false);
+		LOCAL_WORKER->atomic_block_start_time_in_ms.store(0);
 	}
 
 
