@@ -56,7 +56,7 @@ namespace mn
 
 	// fabric_new creates a group of workers
 	MN_EXPORT Fabric
-	fabric_new(size_t worker_count = 0, uint32_t blocking_threshold_in_ms = 0, size_t put_aside_worker_count = 0);
+	fabric_new(size_t worker_count = 0, uint32_t coop_blocking_threshold_in_ms = 0, uint32_t external_blocking_threshold_in_ms = 0, size_t put_aside_worker_count = 0);
 
 	// fabric_free stops and frees the group of workers
 	MN_EXPORT void
@@ -227,9 +227,11 @@ namespace mn
 	inline static void
 	chan_close(Chan<T> self)
 	{
+		mutex_lock(self->mtx);
 		self->atomic_limit.exchange(0);
-		cond_var_notify_all(self->write_cv);
+		mutex_unlock(self->mtx);
 		cond_var_notify_all(self->read_cv);
+		cond_var_notify_all(self->write_cv);
 	}
 
 	template<typename T>

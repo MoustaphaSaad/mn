@@ -94,16 +94,11 @@ if(MSVC)
 	)
 endif(MSVC)
 
-set(UNITY_SOURCE_FILES
-	src/mn/Build.cpp
-)
-
 
 # add library target
 add_library(mn
 	${HEADER_FILES}
 	${SOURCE_FILES}
-	${UNITY_SOURCE_FILES}
 	${TOOL_FILES}
 )
 
@@ -117,10 +112,7 @@ target_link_libraries(mn
 # make it reflect the same structure as the one on disk
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${HEADER_FILES})
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCE_FILES})
-source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${UNITY_SOURCE_FILES})
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${TOOL_FILES})
-# ignore source files since we are doing unity builds
-SET_SOURCE_FILES_PROPERTIES(${SOURCE_FILES} PROPERTIES HEADER_FILE_ONLY true)
 
 
 # Windows specfic flags to enable W variations of winapi

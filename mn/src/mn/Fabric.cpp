@@ -238,6 +238,7 @@ namespace mn
 	struct IFabric
 	{
 		uint32_t coop_blocking_threshold;
+		uint32_t extr_blocking_threshold;
 		size_t put_aside_worker_count;
 
 		Buf<Worker> workers;
@@ -419,14 +420,20 @@ namespace mn
 
 	// fabric
 	Fabric
-	fabric_new(size_t workers_count, uint32_t blocking_threshold_in_ms, size_t put_aside_worker_count)
+	fabric_new(size_t workers_count, uint32_t coop_blocking_threshold_in_ms, uint32_t external_blocking_threshold_in_ms, size_t put_aside_worker_count)
 	{
 		auto self = alloc_zerod<IFabric>();
 
 		if (workers_count == 0)
 			workers_count = std::thread::hardware_concurrency();
 
-		self->coop_blocking_threshold = blocking_threshold_in_ms;
+		self->coop_blocking_threshold = coop_blocking_threshold_in_ms;
+		if (self->coop_blocking_threshold == 0)
+			self->coop_blocking_threshold = DEFAULT_COOP_BLOCKING_THRESHOLD;
+
+		self->extr_blocking_threshold = external_blocking_threshold_in_ms;
+		if (self->extr_blocking_threshold == 0)
+			self->extr_blocking_threshold = DEFAULT_EXTR_BLOCKING_THRESHOLD;
 
 		self->put_aside_worker_count = put_aside_worker_count;
 		if(self->put_aside_worker_count == 0)
@@ -450,9 +457,6 @@ namespace mn
 		self->atomic_sysmon_close.store(false);
 
 		self->sysmon = thread_new(_sysmon_main, self, "fabric sysmon thread");
-
-		if(self->coop_blocking_threshold == 0)
-			self->coop_blocking_threshold = DEFAULT_COOP_BLOCKING_THRESHOLD;
 
 		return self;
 	}
