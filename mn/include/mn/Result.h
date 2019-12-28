@@ -70,6 +70,12 @@ namespace mn
 			 err(E{})
 		{}
 
+		template<typename... TArgs>
+		Result(E e, TArgs&& ... args)
+			:val(std::forward<TArgs>(args)...),
+			 err(e)
+		{}
+
 		Result(const Result&) = delete;
 
 		Result(Result&&) = default;

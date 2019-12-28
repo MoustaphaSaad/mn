@@ -156,49 +156,75 @@ namespace mn
 	thread_sleep(uint32_t milliseconds);
 
 
-	//Condition Variable + Mutex Combo
-	struct Limbo_Predicate
+	// time in milliseonds
+	MN_EXPORT uint64_t
+	time_in_millis();
+
+
+	// Condition Variable
+	typedef struct ICond_Var* Cond_Var;
+
+	enum class Cond_Var_Wake_State
 	{
-		virtual bool should_wake() = 0;
+		SIGNALED,
+		TIMEOUT,
+		SPURIOUS
 	};
 
-	typedef struct ILimbo* Limbo;
-
-	MN_EXPORT Limbo
-	limbo_new(const char* name);
+	MN_EXPORT Cond_Var
+	cond_var_new();
 
 	MN_EXPORT void
-	limbo_free(Limbo limbo);
+	cond_var_free(Cond_Var self);
 
-	//wait for the predicate to be true
-	MN_EXPORT void
-	limbo_lock(Limbo limbo, Limbo_Predicate* pred);
-
-	//leaves the limbo + notify one combo
-	MN_EXPORT void
-	limbo_unlock_one(Limbo limbo);
-
-	//leaves the limbo + notify all combo
-	MN_EXPORT void
-	limbo_unlock_all(Limbo limbo);
-
-	template<typename T>
-	struct Limbo_Lambda final: Limbo_Predicate
-	{
-		T predicate;
-
-		Limbo_Lambda(T&& pred)
-			:predicate(pred)
-		{}
-
-		bool should_wake() override { return predicate(); }
-	};
-
-	template<typename TPredicate>
 	inline static void
-	limbo_lock(Limbo limbo, TPredicate&& pred)
+	destruct(Cond_Var self)
 	{
-		Limbo_Lambda lambda(pred);
-		limbo_lock(limbo, &lambda);
+		cond_var_free(self);
 	}
+
+	MN_EXPORT void
+	cond_var_wait(Cond_Var self, Mutex mtx);
+
+	template<typename TFunc>
+	inline static void
+	cond_var_wait(Cond_Var self, Mutex mtx, TFunc&& func)
+	{
+		while (func() == false)
+			cond_var_wait(self, mtx);
+	}
+
+	MN_EXPORT Cond_Var_Wake_State
+	cond_var_wait_timeout(Cond_Var self, Mutex mtx, uint32_t millis);
+
+	template<typename TFunc>
+	inline static bool
+	cond_var_wait_timeout(Cond_Var self, Mutex mtx, uint32_t millis, TFunc&& func)
+	{
+		auto start_time = time_in_millis();
+		while (func() == false)
+		{
+			auto state = cond_var_wait_timeout(self, mtx, millis);
+			if (state == Cond_Var_Wake_State::SIGNALED)
+			{
+				return true;
+			}
+			else if (state == Cond_Var_Wake_State::TIMEOUT)
+			{
+				return false;
+			}
+			else
+			{
+				auto end_time = time_in_millis();
+				if (end_time - start_time >= millis)
+					return false;
+			}
+		}
+	}
+
+	MN_EXPORT void
+	cond_var_notify(Cond_Var self);
+
+	MN_EXPORT void
+	cond_var_notify_all(Cond_Var self);
 }

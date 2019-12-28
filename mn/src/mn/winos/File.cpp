@@ -2,12 +2,14 @@
 #include "mn/Defer.h"
 #include "mn/Memory.h"
 #include "mn/Thread.h"
+#include "mn/Fabric.h"
 
 #define NOMINMAX
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <mbstring.h>
 #include <tchar.h>
+#undef DELETE
 
 namespace mn
 {
@@ -164,9 +166,12 @@ namespace mn
 		if(winos_handle == file_stdin()->winos_handle)
 			mtx = _mutex_stdin();
 
+		worker_block_ahead();
 		if(mtx) mutex_lock(mtx);
 			ReadFile(winos_handle, data.ptr, DWORD(data.size), &bytes_read, NULL);
+			worker_block_clear();
 		if(mtx) mutex_unlock(mtx);
+
 		return bytes_read;
 	}
 
@@ -181,8 +186,10 @@ namespace mn
 		else if(winos_handle == file_stderr()->winos_handle)
 			mtx = _mutex_stderr();
 
+		worker_block_ahead();
 		if (mtx) mutex_lock(mtx);
 			WriteFile(winos_handle, data.ptr, DWORD(data.size), &bytes_written, NULL);
+			worker_block_clear();
 		if (mtx) mutex_unlock(mtx);
 		return bytes_written;
 	}
@@ -252,7 +259,7 @@ namespace mn
 
 	//files
 	File
-	file_open(const char* filename, IO_MODE io_mode, OPEN_MODE open_mode)
+	file_open(const char* filename, IO_MODE io_mode, OPEN_MODE open_mode, SHARE_MODE share_mode)
 	{
 		//translate the io mode
 		DWORD desired_access;
@@ -299,14 +306,48 @@ namespace mn
 				break;
 		}
 
+		DWORD sharing_disposition;
+		switch (share_mode)
+		{
+		case SHARE_MODE_READ:
+			sharing_disposition = FILE_SHARE_READ;
+			break;
+		case SHARE_MODE_WRITE:
+			sharing_disposition = FILE_SHARE_WRITE;
+			break;
+		case SHARE_MODE_DELETE:
+			sharing_disposition = FILE_SHARE_DELETE;
+			break;
+		case SHARE_MODE_READ_WRITE:
+			sharing_disposition = FILE_SHARE_READ | FILE_SHARE_WRITE;
+			break;
+		case SHARE_MODE_READ_DELETE:
+			sharing_disposition = FILE_SHARE_READ | FILE_SHARE_DELETE;
+			break;
+		case SHARE_MODE_WRITE_DELETE:
+			sharing_disposition = FILE_SHARE_WRITE | FILE_SHARE_DELETE;
+			break;
+		case SHARE_MODE_ALL:
+			sharing_disposition = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
+			break;
+		case SHARE_MODE_NONE:
+		default:
+			sharing_disposition = NULL;
+			break;
+		}
+
 		Block os_str = to_os_encoding(filename, allocator_top());
 		mn_defer(mn::free(os_str));
 
 		LPWSTR win_filename = (LPWSTR)os_str.ptr;
-		HANDLE windows_handle = CreateFile (win_filename, desired_access, 0, NULL,
-											creation_disposition,
-											FILE_ATTRIBUTE_NORMAL,
-											NULL);
+		HANDLE windows_handle = CreateFile(
+			win_filename,
+			desired_access,
+			sharing_disposition,
+			NULL,
+			creation_disposition,
+			FILE_ATTRIBUTE_NORMAL,
+			NULL);
 
 		if(windows_handle == INVALID_HANDLE_VALUE)
 			return nullptr;
@@ -402,5 +443,27 @@ namespace mn
 		LARGE_INTEGER position, offset;
 		offset.QuadPart = 0;
 		return SetFilePointerEx(self->winos_handle, offset, &position, FILE_END);
+	}
+
+	bool
+	file_lock(File self, int64_t offset, int64_t size)
+	{
+		assert(offset >= 0 && size >= 0);
+		DWORD offset_low  = (DWORD)(offset & (0x00000000FFFFFFFF));
+		DWORD offset_high = (DWORD)(offset & (0xFFFFFFFF00000000));
+		DWORD size_low  = (DWORD)(size & (0x00000000FFFFFFFF));
+		DWORD size_high = (DWORD)(size & (0xFFFFFFFF00000000));
+		return LockFile(self->winos_handle, offset_low, offset_high, size_low, size_high);
+	}
+
+	bool
+	file_unlock(File self, int64_t offset, int64_t size)
+	{
+		assert(offset >= 0 && size >= 0);
+		DWORD offset_low  = (DWORD)(offset & (0x00000000FFFFFFFF));
+		DWORD offset_high = (DWORD)(offset & (0xFFFFFFFF00000000));
+		DWORD size_low  = (DWORD)(size & (0x00000000FFFFFFFF));
+		DWORD size_high = (DWORD)(size & (0xFFFFFFFF00000000));
+		return UnlockFile(self->winos_handle, offset_low, offset_high, size_low, size_high);
 	}
 }

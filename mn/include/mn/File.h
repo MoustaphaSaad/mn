@@ -79,6 +79,18 @@ namespace mn
 		OPEN_APPEND
 	};
 
+	enum SHARE_MODE
+	{
+		SHARE_MODE_READ,
+		SHARE_MODE_WRITE,
+		SHARE_MODE_DELETE,
+		SHARE_MODE_READ_WRITE,
+		SHARE_MODE_READ_DELETE,
+		SHARE_MODE_WRITE_DELETE,
+		SHARE_MODE_ALL,
+		SHARE_MODE_NONE,
+	};
+
 	/**
 	 * @brief      IO_MODE enum
 	 * 
@@ -119,12 +131,12 @@ namespace mn
 	 * @param[in]  open_mode  The open mode
 	 */
 	MN_EXPORT File
-	file_open(const char* filename, IO_MODE io_mode, OPEN_MODE open_mode);
+	file_open(const char* filename, IO_MODE io_mode, OPEN_MODE open_mode, SHARE_MODE share_mode = SHARE_MODE_ALL);
 
 	inline static File
-	file_open(const Str& filename, IO_MODE io_mode, OPEN_MODE open_mode)
+	file_open(const Str& filename, IO_MODE io_mode, OPEN_MODE open_mode, SHARE_MODE share_mode = SHARE_MODE_ALL)
 	{
-		return file_open(filename.ptr, io_mode, open_mode);
+		return file_open(filename.ptr, io_mode, open_mode, share_mode);
 	}
 
 	/**
@@ -202,4 +214,13 @@ namespace mn
 	 */
 	MN_EXPORT bool
 	file_cursor_move_to_end(File handle);
+
+	// specify a region of the file to be locked
+	// locks can't overlap -> file_lock will fail
+	// you can lock a region beyond EOF to coordinate record addition to a file
+	MN_EXPORT bool
+	file_lock(File handle, int64_t offset, int64_t size);
+
+	MN_EXPORT bool
+	file_unlock(File handle, int64_t offset, int64_t size);
 }
