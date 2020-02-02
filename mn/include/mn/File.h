@@ -13,6 +13,7 @@ namespace mn
 		{
 			void* winos_handle;
 			int linux_handle;
+			int macos_handle;
 		};
 
 		MN_EXPORT virtual void

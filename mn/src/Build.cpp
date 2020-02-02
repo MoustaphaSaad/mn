@@ -23,6 +23,15 @@
 #include "mn/linux/Socket.cpp"
 #include "mn/linux/Thread.cpp"
 #include "mn/linux/Virtual_Memory.cpp"
+#elif defined(OS_MACOS)
+#include "mn/mac/Debug.cpp"
+#include "mn/mac/File.cpp"
+#include "mn/mac/IPC.cpp"
+#include "mn/mac/Library.cpp"
+#include "mn/mac/Path.cpp"
+#include "mn/mac/Socket.cpp"
+#include "mn/mac/Thread.cpp"
+#include "mn/mac/Virtual_Memory.cpp"
 #endif
 
 #include "mn/Base.cpp"

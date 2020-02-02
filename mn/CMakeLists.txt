@@ -78,7 +78,7 @@ if(WIN32)
 		src/mn/winos/Socket.cpp
 		src/mn/winos/Library.cpp
 	)
-elseif(UNIX)
+elseif(UNIX AND NOT APPLE)
 	set(SOURCE_FILES ${SOURCE_FILES}
 		src/mn/linux/Debug.cpp
 		src/mn/linux/Path.cpp
@@ -88,6 +88,17 @@ elseif(UNIX)
 		src/mn/linux/IPC.cpp
 		src/mn/linux/Socket.cpp
 		src/mn/linux/Library.cpp
+	)
+elseif(APPLE)
+	set(SOURCE_FILES ${SOURCE_FILES}
+		src/mn/mac/Debug.cpp
+		src/mn/mac/Path.cpp
+		src/mn/mac/File.cpp
+		src/mn/mac/Thread.cpp
+		src/mn/mac/Virtual_Memory.cpp
+		src/mn/mac/IPC.cpp
+		src/mn/mac/Socket.cpp
+		src/mn/mac/Library.cpp
 	)
 endif()
 
@@ -152,7 +163,7 @@ if(WIN32)
 		PRIVATE
 			/W4
 	)
-elseif(UNIX)
+elseif(UNIX AND NOT APPLE) 
 	target_link_libraries(mn
 		PRIVATE
 			pthread rt dl
@@ -160,6 +171,19 @@ elseif(UNIX)
 	target_compile_definitions(mn
 		PUBLIC
 			OS_LINUX=1
+	)
+	target_compile_options(mn
+		PRIVATE
+			-Wall
+	)
+elseif(APPLE) 
+	target_link_libraries(mn
+		PRIVATE
+                        pthread dl
+	)
+	target_compile_definitions(mn
+		PUBLIC
+			OS_MACOS=1
 	)
 	target_compile_options(mn
 		PRIVATE
