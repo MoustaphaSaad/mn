@@ -38,25 +38,25 @@ namespace mn::ipc
 		int shm_fd = shm_open(name.ptr, O_RDWR, 0660);
 		bool created = false;
 
-		// mutex was not created before, create it!
+        // mutex was not created be  fore, create it!
 		if(errno == ENOENT)
 		{
 			shm_fd = shm_open(name.ptr, O_RDWR | O_CREAT, 0660);
-			created = true;
+			created = true;         
+
+            // Truncate shared memory segment so it would contain IShared_Mutex
+            if (ftruncate(shm_fd, sizeof(IShared_Mutex) != 0))
+            {
+                close(shm_fd);
+                shm_unlink(name.ptr);
+                return nullptr;
+            }
 		}
 
 		if(shm_fd == -1)
 			return nullptr;
 
-		// Truncate shared memory segment so it would contain IShared_Mutex
-		if (ftruncate(shm_fd, sizeof(IShared_Mutex)) != 0)
-		{
-			close(shm_fd);
-			shm_unlink(name.ptr);
-			return nullptr;
-		}
-
-		// Map pthread mutex into the shared memory.
+        // Map pthread mutex into the shared memory.
 		void *addr = mmap(
 		  NULL,
 		  sizeof(IShared_Mutex),
@@ -69,7 +69,7 @@ namespace mn::ipc
 		if(addr == MAP_FAILED)
 		{
 			close(shm_fd);
-			shm_unlink(name.ptr);
+            shm_unlink(name.ptr);
 			return nullptr;
 		}
 

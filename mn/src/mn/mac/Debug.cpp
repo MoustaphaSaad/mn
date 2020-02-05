@@ -6,6 +6,8 @@
 
 #include <stdlib.h>
 
+#include <string.h>
+
 namespace mn
 {
 	Str
@@ -30,18 +32,29 @@ namespace mn
 		{
 			for(size_t i = 0; i < frames_count; ++i)
 			{
-				//isolate the function name
-				char *name_begin = nullptr, *name_end = nullptr, *name_it = symbols[i];
-				while(*name_it != 0)
-				{
-					if(*name_it == '(')
-						name_begin = name_it+1;
-					else if(*name_it == ')' || *name_it == '+')
-					{
-						name_end = name_it;
-						break;
-					}
-					++name_it;
+                //isolate the function name
+                //function name is the 4th element when spliting the symbol by space delimiter
+                //exe... 0   example 0x000000010dd39efe main + 46
+
+                char *name_begin = nullptr, *name_end = nullptr;
+
+                char delim[] = " ";
+                int token_index = 0;
+                char *name_it = strtok(symbols[i], delim);
+
+                while(name_it != NULL)
+                {
+                    if(token_index == 3)
+                    {
+                        name_begin = name_it;
+                    }
+                    else if(token_index == 4)
+                    {
+                        name_end = name_it - 1;
+                    }
+
+                    name_it = strtok(NULL, delim);
+                    ++token_index;
 				}
 
 				
