@@ -2,7 +2,7 @@
 #include "mn/Str.h"
 #include "mn/Memory.h"
 #include "mn/Fabric.h"
-#include "mn/File.h"
+
 
 #include <errno.h>
 #include <fcntl.h>
@@ -14,46 +14,35 @@
 namespace mn::ipc
 {
 
-    struct IIPC_Mutex
-    {
-        mn::File mtx;
-    };
-
     Mutex
     mutex_new(const Str& name)
     {
-
-        auto mtx = mn::file_open(name, mn::IO_MODE::WRITE, mn::OPEN_MODE::CREATE_APPEND);
-        if(mtx == nullptr)
-            return  nullptr;
-
-        auto self = alloc<IIPC_Mutex>();
-        self->mtx = mtx;
-        return self;
+        return (Mutex)mn::file_open(name, mn::IO_MODE::WRITE, mn::OPEN_MODE::CREATE_APPEND);
     }
 
     void
-    mutex_free(Mutex self)
+    mutex_free(Mutex mtx)
     {
-       self->mtx->dispose();
-
-       mn::free(self);
+        auto self = (File)mtx;
+        self->dispose();
     }
 
     void
-    mutex_lock(Mutex self)
+    mutex_lock(Mutex mtx)
     {
         worker_block_ahead();
 
-        file_write_lock(self->mtx, 0, 0);
+        auto self = (File)mtx;
+        file_write_lock(self, 0, 0);
 
         worker_block_clear();
     }
 
     LOCK_RESULT
-    mutex_try_lock(Mutex self)
+    mutex_try_lock(Mutex mtx)
     {
-        bool res = file_write_try_lock(self->mtx, 0, 0);
+        auto self = (File)mtx;
+        bool res = file_write_try_lock(self, 0, 0);
 
         if(res)
         {
@@ -67,8 +56,9 @@ namespace mn::ipc
     }
 
     void
-    mutex_unlock(Mutex self)
+    mutex_unlock(Mutex mtx)
     {
-        file_write_unlock(self->mtx, 0, 0);
+        auto self = (File)mtx;
+        file_write_unlock(self, 0, 0);
     }
 }
