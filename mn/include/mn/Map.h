@@ -814,4 +814,148 @@ namespace mn
 	{
 		return (Key_Value<TKey, TValue>*)buf_end(self.values);
 	}
+
+	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
+	struct Map_Iterator
+	{
+		Key_Value<const TKey, TValue>* it;
+		Map<TKey, TValue, THash>* map;
+
+		Map_Iterator&
+		operator++()
+		{
+			it = map_next(*map, it);
+			return *this;
+		}
+
+		Map_Iterator
+		operator++(int)
+		{
+			auto r = *this;
+			it = map_next(*map, it);
+			return r;
+		}
+
+		bool
+		operator==(const Map_Iterator& other) const
+		{
+			return it == other.it && map == other.map;
+		}
+
+		bool
+		operator!=(const Map_Iterator& other) const
+		{
+			return !operator==(other);
+		}
+
+		Key_Value<const TKey, TValue>&
+		operator*()
+		{
+			return *it;
+		}
+
+		const Key_Value<const TKey, TValue>&
+		operator*() const
+		{
+			return *it;
+		}
+
+		Key_Value<const TKey, TValue>*
+		operator->()
+		{
+			return it;
+		}
+
+		const Key_Value<const TKey, TValue>*
+		operator->() const
+		{
+			return it;
+		}
+	};
+
+	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
+	struct Const_Map_Iterator
+	{
+		const Key_Value<const TKey, TValue>* it;
+		const Map<TKey, TValue, THash>* map;
+
+		Const_Map_Iterator&
+		operator++()
+		{
+			it = map_next(*map, it);
+			return *this;
+		}
+
+		Const_Map_Iterator
+		operator++(int)
+		{
+			auto r = *this;
+			it = map_next(*map, it);
+			return r;
+		}
+
+		bool
+		operator==(const Const_Map_Iterator& other) const
+		{
+			return it == other.it && map == other.map;
+		}
+
+		bool
+		operator!=(const Const_Map_Iterator& other) const
+		{
+			return !operator==(other);
+		}
+
+		const Key_Value<const TKey, TValue>&
+		operator*() const
+		{
+			return *it;
+		}
+
+		const Key_Value<const TKey, TValue>*
+		operator->() const
+		{
+			return it;
+		}
+	};
+
+	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
+	inline static Map_Iterator<TKey, TValue, THash>
+	begin(Map<TKey, TValue, THash>& self)
+	{
+		Map_Iterator<TKey, TValue, THash> r{};
+		r.it = map_begin(self);
+		r.map = &self;
+		return r;
+	}
+
+	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
+	inline static Const_Map_Iterator<TKey, TValue, THash>
+	begin(const Map<TKey, TValue, THash>& self)
+	{
+		Const_Map_Iterator<TKey, TValue, THash> r{};
+		r.it = map_begin(self);
+		r.map = &self;
+		return r;
+	}
+
+	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
+	inline static Map_Iterator<TKey, TValue, THash>
+	end(Map<TKey, TValue, THash>& self)
+	{
+		Map_Iterator<TKey, TValue, THash> r{};
+		r.it = map_end(self);
+		r.map = &self;
+		return r;
+	}
+
+	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
+	inline static Const_Map_Iterator<TKey, TValue, THash>
+	end(const Map<TKey, TValue, THash>& self)
+	{
+		Const_Map_Iterator<TKey, TValue, THash> r{};
+		r.it = map_end(self);
+		r.map = &self;
+		return r;
+	}
 }

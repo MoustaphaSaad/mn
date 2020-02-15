@@ -210,7 +210,7 @@ namespace mn
 	void
 	file_close(File self)
 	{
-		free_destruct(self);
+		self->dispose();
 	}
 
 	bool

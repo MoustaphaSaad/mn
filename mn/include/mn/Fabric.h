@@ -426,4 +426,106 @@ namespace mn
 	{
 		return Chan_Iterator<T>{self, {}};
 	}
+
+	template<typename T>
+	struct Auto_Chan
+	{
+		Chan<T> handle;
+
+		explicit Auto_Chan(size_t limit = 1)
+			: handle(chan_new<T>(limit))
+		{}
+
+		Auto_Chan(const Auto_Chan& other)
+			: handle(chan_new(other.handle))
+		{}
+
+		Auto_Chan(Auto_Chan&& other)
+			: handle(other.handle)
+		{
+			other.handle = nullptr;
+		}
+
+		Auto_Chan&
+		operator=(const Auto_Chan& other)
+		{
+			if (handle) chan_free(handle);
+			handle = chan_new(other.handle);
+			return *this;
+		}
+
+		Auto_Chan&
+		operator=(Auto_Chan&& other)
+		{
+			if (handle) chan_free(handle);
+			handle = other.handle;
+			other.handle = nullptr;
+			return *this;
+		}
+
+		~Auto_Chan()
+		{
+			if (handle) chan_free(handle);
+		}
+
+		operator Chan<T>() const { return handle; }
+		Chan_Iterator<T> begin() { return Chan_Iterator<T>{handle, chan_recv(handle)}; }
+		Chan_Iterator<T> end() { return Chan_Iterator<T>{handle, {}}; }
+	};
+
+	template<typename T>
+	inline static bool
+	chan_closed(const Auto_Chan<T> &self)
+	{
+		return chan_closed(self.handle);
+	}
+
+	template<typename T>
+	inline static void
+	chan_close(Auto_Chan<T> &self)
+	{
+		chan_close(self.handle);
+	}
+
+	template<typename T>
+	inline static bool
+	chan_can_send(const Auto_Chan<T> &self)
+	{
+		return chan_can_send(self.handle);
+	}
+
+	template<typename T>
+	inline static bool
+	chan_send_try(Auto_Chan<T> &self, const T& v)
+	{
+		return chan_send_try(self.handle, v);
+	}
+
+	template<typename T>
+	inline static void
+	chan_send(Auto_Chan<T> &self, const T& v)
+	{
+		return chan_send(self.handle, v);
+	}
+
+	template<typename T>
+	inline static bool
+	chan_can_recv(const Auto_Chan<T> &self)
+	{
+		return chan_can_recv(self.handle);
+	}
+
+	template<typename T>
+	inline static Recv_Result<T>
+	chan_recv_try(Auto_Chan<T> &self)
+	{
+		return chan_recv_try(self.handle);
+	}
+
+	template<typename T>
+	inline static Recv_Result<T>
+	chan_recv(Auto_Chan<T> &self)
+	{
+		return chan_recv(self.handle);
+	}
 }

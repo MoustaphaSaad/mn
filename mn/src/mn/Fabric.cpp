@@ -11,7 +11,7 @@
 
 namespace mn
 {
-	constexpr static auto DEFAULT_COOP_BLOCKING_THRESHOLD = 16;
+	constexpr static auto DEFAULT_COOP_BLOCKING_THRESHOLD = 100;
 	constexpr static auto DEFAULT_EXTR_BLOCKING_THRESHOLD = 10000;
 
 	inline static void
@@ -131,6 +131,7 @@ namespace mn
 		job();
 		self->atomic_job_start_time_in_ms.store(0);
 		task_free(job);
+		memory::tmp()->free_all();
 	}
 
 	static void
