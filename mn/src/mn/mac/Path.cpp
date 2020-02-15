@@ -4,7 +4,6 @@
 #include "mn/Defer.h"
 
 #define _LARGEFILE64_SOURCE 1
-//#include <sys/sysinfo.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/types.h>

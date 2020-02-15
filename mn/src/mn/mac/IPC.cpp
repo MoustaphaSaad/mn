@@ -3,7 +3,6 @@
 #include "mn/Memory.h"
 #include "mn/Fabric.h"
 
-
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -13,52 +12,77 @@
 
 namespace mn::ipc
 {
+	bool
+	_mutex_try_lock(Mutex self, int64_t offset, int64_t size)
+	{
+		assert(offset >= 0 && size >= 0);
+		struct flock fl{};
+		fl.l_type = F_WRLCK;
+		fl.l_whence = SEEK_SET;
+		fl.l_start = offset;
+		fl.l_len = size;
+		return fcntl(int(self), F_SETLK, &fl) != -1;
+	}
 
-    Mutex
-    mutex_new(const Str& name)
-    {
-        return (Mutex)mn::file_open(name, mn::IO_MODE::WRITE, mn::OPEN_MODE::CREATE_APPEND);
-    }
+	bool
+	_mutex_unlock(Mutex self, int64_t offset, int64_t size)
+	{
+		assert(offset >= 0 && size >= 0);
+		struct flock fl{};
+		fl.l_type = F_UNLCK;
+		fl.l_whence = SEEK_SET;
+		fl.l_start = offset;
+		fl.l_len = size;
+		return fcntl(int(self), F_SETLK, &fl) != -1;
+	}
 
-    void
-    mutex_free(Mutex mtx)
-    {
-        auto self = (File)mtx;
-        self->dispose();
-    }
+	// API
+	Mutex
+	mutex_new(const Str& name)
+	{
+		int flags = O_WRONLY | O_CREAT | O_APPEND;
 
-    void
-    mutex_lock(Mutex mtx)
-    {
-        worker_block_ahead();
+		int macos_handle = ::open(name.ptr, flags, S_IRWXU);
+		if(macos_handle == -1)
+			return nullptr;
 
-        auto self = (File)mtx;
-        file_write_lock(self, 0, 0);
+		return Mutex(macos_handle);
+	}
 
-        worker_block_clear();
-    }
+	void
+	mutex_free(Mutex mtx)
+	{
+		::close(int(mtx));
+	}
 
-    LOCK_RESULT
-    mutex_try_lock(Mutex mtx)
-    {
-        auto self = (File)mtx;
-        bool res = file_write_try_lock(self, 0, 0);
+	void
+	mutex_lock(Mutex mtx)
+	{
+		worker_block_ahead();
 
-        if(res)
-        {
-            return  LOCK_RESULT::OBTAINED;
-        }
-        else
-        {
-            return LOCK_RESULT::FAILED;
-        }
+		worker_block_on([&]{
+			return _mutex_try_lock(mtx, offset, size);
+		});
 
-    }
+		worker_block_clear();
+	}
 
-    void
-    mutex_unlock(Mutex mtx)
-    {
-        auto self = (File)mtx;
-        file_write_unlock(self, 0, 0);
-    }
+	LOCK_RESULT
+	mutex_try_lock(Mutex mtx)
+	{
+		if(_mutex_try_lock(mtx, offset, size))
+		{
+			return  LOCK_RESULT::OBTAINED;
+		}
+		else
+		{
+			return LOCK_RESULT::FAILED;
+		}
+	}
+
+	void
+	mutex_unlock(Mutex mtx)
+	{
+		_mutex_unlock(mtx, 0, 0);
+	}
 }

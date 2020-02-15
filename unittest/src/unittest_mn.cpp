@@ -506,7 +506,7 @@ TEST_CASE("Rune")
 	CHECK(rune_upper('A') == 'A');
 	CHECK(rune_lower('A') == 'a');
 	CHECK(rune_lower('a') == 'a');
-    CHECK(rune_lower(L'م') == L'م');
+    CHECK(rune_lower('م') == 'م');
 }
 
 TEST_CASE("Task")

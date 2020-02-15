@@ -179,7 +179,7 @@ elseif(UNIX AND NOT APPLE)
 elseif(APPLE) 
 	target_link_libraries(mn
 		PRIVATE
-                        pthread dl
+			pthread dl
 	)
 	target_compile_definitions(mn
 		PUBLIC
