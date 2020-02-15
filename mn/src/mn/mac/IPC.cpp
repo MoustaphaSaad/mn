@@ -21,7 +21,7 @@ namespace mn::ipc
 		fl.l_whence = SEEK_SET;
 		fl.l_start = offset;
 		fl.l_len = size;
-		return fcntl(int(self), F_SETLK, &fl) != -1;
+		return fcntl(intptr_t(self), F_SETLK, &fl) != -1;
 	}
 
 	bool
@@ -33,7 +33,7 @@ namespace mn::ipc
 		fl.l_whence = SEEK_SET;
 		fl.l_start = offset;
 		fl.l_len = size;
-		return fcntl(int(self), F_SETLK, &fl) != -1;
+		return fcntl(intptr_t(self), F_SETLK, &fl) != -1;
 	}
 
 	// API
@@ -52,7 +52,7 @@ namespace mn::ipc
 	void
 	mutex_free(Mutex mtx)
 	{
-		::close(int(mtx));
+		::close(intptr_t(mtx));
 	}
 
 	void
