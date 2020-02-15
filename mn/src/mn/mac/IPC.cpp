@@ -61,7 +61,7 @@ namespace mn::ipc
 		worker_block_ahead();
 
 		worker_block_on([&]{
-			return _mutex_try_lock(mtx, offset, size);
+			return _mutex_try_lock(mtx, 0, 0);
 		});
 
 		worker_block_clear();
@@ -70,7 +70,7 @@ namespace mn::ipc
 	LOCK_RESULT
 	mutex_try_lock(Mutex mtx)
 	{
-		if(_mutex_try_lock(mtx, offset, size))
+		if(_mutex_try_lock(mtx, 0, 0))
 		{
 			return  LOCK_RESULT::OBTAINED;
 		}
