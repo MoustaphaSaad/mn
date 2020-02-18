@@ -34,13 +34,12 @@ namespace mn
 			{
 				//isolate the function name
 				//function name is the 4th element when spliting the symbol by space delimiter
-				//exe... 0   example 0x000000010dd39efe main + 46
+				//exe "0   example 0x000000010dd39efe main + 46"
 
 				char *name_begin = nullptr, *name_end = nullptr;
 
-				char delim[] = " ";
 				int token_index = 0;
-				char *name_it = strtok(symbols[i], delim);
+				char *name_it = strtok(symbols[i], " ");
 
 				while(name_it != NULL)
 				{
@@ -53,11 +52,13 @@ namespace mn
 						name_end = name_it - 1;
 					}
 
-					name_it = strtok(NULL, delim);
+					name_it = strtok(NULL, " ");
 					++token_index;
 				}
 
-				
+				if(token_index == 3)
+					name_end = symbols[0] + strlen(symbols[0]);
+
 				size_t mangled_name_size = name_end - name_begin;
 				//function maybe inlined
 				if(mangled_name_size == 0)
