@@ -20,11 +20,6 @@ namespace mn
 		constexpr size_t STACK_MAX = 4096;
 		void* callstack[STACK_MAX];
 
-		//+1 for null terminated string
-		char name_buffer[MAX_NAME_LEN+1];
-		char demangled_buffer[MAX_NAME_LEN+1];
-		size_t demangled_buffer_length = MAX_NAME_LEN;
-
 		//capture the call stack
 		size_t frames_count = backtrace(callstack, STACK_MAX);
 		//resolve the symbols
@@ -57,18 +52,17 @@ namespace mn
 					continue;
 				}
 
-				//copy the function name into the name buffer
-				size_t copy_size = mangled_name_size > MAX_NAME_LEN ? MAX_NAME_LEN : mangled_name_size;
-                memcpy(name_buffer, mangled_name.ptr, copy_size);
-				name_buffer[copy_size] = 0;
+				char* demangled_name= (char*) malloc(MAX_NAME_LEN);
+				size_t demangled_buffer_length = MAX_NAME_LEN;
 
 				int status = 0;
-				abi::__cxa_demangle(name_buffer, demangled_buffer, &demangled_buffer_length, &status);
-				demangled_buffer[MAX_NAME_LEN] = 0;
+				abi::__cxa_demangle(mangled_name.ptr, demangled_name, &demangled_buffer_length, &status);
+				demangled_name[MAX_NAME_LEN] = 0;
 				if(status == 0)
-					str = strf(str, "[{}]: {}\n", frames_count - i - 1, demangled_buffer);
+					str = strf(str, "[{}]: {}\n", frames_count - i - 1, demangled_name);
 				else
-					str = strf(str, "[{}]: {}\n", frames_count - i - 1, name_buffer);
+					str = strf(str, "[{}]: {}\n", frames_count - i - 1, mangled_name.ptr);
+				::free(demangled_name);
 			}
 			::free(symbols);
 		}
