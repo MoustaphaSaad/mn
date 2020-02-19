@@ -52,16 +52,14 @@ namespace mn
 					continue;
 				}
 
-				char* demangled_name= (char*) malloc(MAX_NAME_LEN);
-				size_t demangled_buffer_length = MAX_NAME_LEN;
-
 				int status = 0;
-				abi::__cxa_demangle(mangled_name.ptr, demangled_name, &demangled_buffer_length, &status);
-				demangled_name[MAX_NAME_LEN] = 0;
+				char* demangled_name = abi::__cxa_demangle(mangled_name.ptr, NULL, 0, &status);
+
 				if(status == 0)
 					str = strf(str, "[{}]: {}\n", frames_count - i - 1, demangled_name);
 				else
 					str = strf(str, "[{}]: {}\n", frames_count - i - 1, mangled_name.ptr);
+					
 				::free(demangled_name);
 			}
 			::free(symbols);

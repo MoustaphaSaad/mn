@@ -18,8 +18,6 @@ namespace mn
 
 		//+1 for null terminated string
 		char name_buffer[MAX_NAME_LEN+1];
-		char demangled_buffer[MAX_NAME_LEN+1];
-		size_t demangled_buffer_length = MAX_NAME_LEN;
 
 		//capture the call stack
 		size_t frames_count = backtrace(callstack, STACK_MAX);
@@ -59,12 +57,14 @@ namespace mn
 				name_buffer[copy_size] = 0;
 
 				int status = 0;
-				abi::__cxa_demangle(name_buffer, demangled_buffer, &demangled_buffer_length, &status);
-				demangled_buffer[MAX_NAME_LEN] = 0;
+				char* demangled_name = abi::__cxa_demangle(name_buffer, NULL, 0, &status);
+
 				if(status == 0)
-					str = strf(str, "[{}]: {}\n", frames_count - i - 1, demangled_buffer);
+					str = strf(str, "[{}]: {}\n", frames_count - i - 1, demangled_name);
 				else
 					str = strf(str, "[{}]: {}\n", frames_count - i - 1, name_buffer);
+				
+				::free(demangled_name);
 			}
 			::free(symbols);
 		}
