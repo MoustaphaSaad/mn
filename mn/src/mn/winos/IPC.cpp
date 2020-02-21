@@ -42,7 +42,7 @@ namespace mn::ipc
 		worker_block_clear();
 	}
 
-	LOCK_RESULT
+	bool
 	mutex_try_lock(Mutex mtx)
 	{
 		auto self = (HANDLE)mtx;
@@ -50,11 +50,10 @@ namespace mn::ipc
 		switch(res)
 		{
 		case WAIT_OBJECT_0:
-			return LOCK_RESULT::OBTAINED;
 		case WAIT_ABANDONED:
-			return LOCK_RESULT::ABANDONED;
+			return true;
 		default:
-			return LOCK_RESULT::FAILED;
+			return false;
 		}
 	}
 

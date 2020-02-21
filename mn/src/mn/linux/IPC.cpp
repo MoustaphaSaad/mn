@@ -5,195 +5,77 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <linux/limits.h>
+#include <limits.h>
 #include <sys/mman.h>
 #include <unistd.h>
-#include <pthread.h>
-#include <atomic>
 #include <assert.h>
 
 namespace mn::ipc
 {
-	struct IShared_Mutex
+	bool
+	_mutex_try_lock(Mutex self, int64_t offset, int64_t size)
 	{
-		pthread_mutex_t mtx;
-		std::atomic<int32_t> atomic_rc;
-	};
+		assert(offset >= 0 && size >= 0);
+		struct flock fl{};
+		fl.l_type = F_WRLCK;
+		fl.l_whence = SEEK_SET;
+		fl.l_start = offset;
+		fl.l_len = size;
+		return fcntl(intptr_t(self), F_SETLK, &fl) != -1;
+	}
 
-	struct IIPC_Mutex
+	bool
+	_mutex_unlock(Mutex self, int64_t offset, int64_t size)
 	{
-		IShared_Mutex* shared_mtx;
-		int shm_fd;
-		Str name;
-		bool created;
-	};
+		assert(offset >= 0 && size >= 0);
+		struct flock fl{};
+		fl.l_type = F_UNLCK;
+		fl.l_whence = SEEK_SET;
+		fl.l_start = offset;
+		fl.l_len = size;
+		return fcntl(intptr_t(self), F_SETLK, &fl) != -1;
+	}
 
+	// API
 	Mutex
 	mutex_new(const Str& name)
 	{
-		errno = 0;
-		// Open existing shared memory object, or create one.
-		// Two separate calls are needed here, to mark fact of creation
-		// for later initialization of pthread mutex.
-		int shm_fd = shm_open(name.ptr, O_RDWR, 0660);
-		bool created = false;
+		int flags = O_WRONLY | O_CREAT | O_APPEND;
 
-		// mutex was not created before, create it!
-		if(errno == ENOENT)
-		{
-			shm_fd = shm_open(name.ptr, O_RDWR | O_CREAT, 0660);
-			created = true;
-		}
-
-		if(shm_fd == -1)
+		int macos_handle = ::open(name.ptr, flags, S_IRWXU);
+		if(macos_handle == -1)
 			return nullptr;
 
-		// Truncate shared memory segment so it would contain IShared_Mutex
-		if (ftruncate(shm_fd, sizeof(IShared_Mutex)) != 0)
-		{
-			close(shm_fd);
-			shm_unlink(name.ptr);
-			return nullptr;
-		}
-
-		// Map pthread mutex into the shared memory.
-		void *addr = mmap(
-		  NULL,
-		  sizeof(IShared_Mutex),
-		  PROT_READ|PROT_WRITE,
-		  MAP_SHARED,
-		  shm_fd,
-		  0
-		);
-
-		if(addr == MAP_FAILED)
-		{
-			close(shm_fd);
-			shm_unlink(name.ptr);
-			return nullptr;
-		}
-
-		auto shared_mtx = (IShared_Mutex*)addr;
-
-		// if first one to create the mutex then initialize it!
-		if(created)
-		{
-			pthread_mutexattr_t attr{};
-			[[maybe_unused]] auto mtx_err = pthread_mutexattr_init(&attr);
-			assert(mtx_err == 0);
-
-			mtx_err = pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED);
-			assert(mtx_err == 0);
-
-			mtx_err = pthread_mutexattr_setrobust(&attr, PTHREAD_MUTEX_ROBUST);
-			assert(mtx_err == 0);
-
-			mtx_err = pthread_mutex_init(&shared_mtx->mtx, &attr);
-			assert(mtx_err == 0);
-
-			shared_mtx->atomic_rc = 1;
-		}
-		else
-		{
-			shared_mtx->atomic_rc.fetch_add(1);
-		}
-
-		auto self = alloc<IIPC_Mutex>();
-		self->shared_mtx = shared_mtx;
-		self->shm_fd = shm_fd;
-		self->name = clone(name);
-		self->created = created;
-
-		return self;
+		return Mutex(macos_handle);
 	}
 
 	void
-	mutex_free(Mutex self)
+	mutex_free(Mutex mtx)
 	{
-		if(self->shared_mtx->atomic_rc.fetch_sub(1) <= 1)
-		{
-			[[maybe_unused]] int res = pthread_mutex_destroy(&self->shared_mtx->mtx);
-			assert(res == 0);
-
-			res = munmap(self->shared_mtx, sizeof(self->shared_mtx));
-			assert(res == 0);
-
-			res = close(self->shm_fd);
-			assert(res == 0);
-
-			res = shm_unlink(self->name.ptr);
-			assert(res == 0);
-
-			str_free(self->name);
-
-			mn::free(self);
-		}
-		else
-		{
-			[[maybe_unused]] int res = munmap(self->shared_mtx, sizeof(self->shared_mtx));
-			assert(res == 0);
-
-			res = close(self->shm_fd);
-			assert(res == 0);
-
-			str_free(self->name);
-
-			mn::free(self);
-		}
+		::close(intptr_t(mtx));
 	}
 
 	void
-	mutex_lock(Mutex self)
+	mutex_lock(Mutex mtx)
 	{
 		worker_block_ahead();
-		while(true)
-		{
-			int res = pthread_mutex_lock(&self->shared_mtx->mtx);
-			if(res == EOWNERDEAD)
-			{
-				pthread_mutex_consistent(&self->shared_mtx->mtx);
-				res = pthread_mutex_unlock(&self->shared_mtx->mtx);
-				assert(res == 0);
-				self->shared_mtx->atomic_rc.fetch_sub(1);
-				continue;
-			}
-			assert(res == 0);
-			break;
-		}
+
+		worker_block_on([&]{
+			return _mutex_try_lock(mtx, 0, 0);
+		});
+
 		worker_block_clear();
 	}
 
-	LOCK_RESULT
-	mutex_try_lock(Mutex self)
+	bool
+	mutex_try_lock(Mutex mtx)
 	{
-		int res = pthread_mutex_trylock(&self->shared_mtx->mtx);
-		if(res == 0)
-		{
-			return LOCK_RESULT::OBTAINED;
-		}
-		else if (res == EOWNERDEAD)
-		{
-			pthread_mutex_consistent(&self->shared_mtx->mtx);
-			res = pthread_mutex_unlock(&self->shared_mtx->mtx);
-			assert(res == 0);
-			self->shared_mtx->atomic_rc.fetch_sub(1);
-
-			res = pthread_mutex_trylock(&self->shared_mtx->mtx);
-			if(res == 0)
-				return LOCK_RESULT::ABANDONED;
-			else
-				return LOCK_RESULT::FAILED;
-		}
-		else
-		{
-			return LOCK_RESULT::FAILED;
-		}
+		return _mutex_try_lock(mtx, 0, 0);
 	}
 
 	void
-	mutex_unlock(Mutex self)
+	mutex_unlock(Mutex mtx)
 	{
-		[[maybe_unused]] int res = pthread_mutex_unlock(&self->shared_mtx->mtx);	
-		assert(res == 0);
+		_mutex_unlock(mtx, 0, 0);
 	}
 }

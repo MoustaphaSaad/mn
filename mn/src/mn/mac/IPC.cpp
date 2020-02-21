@@ -67,17 +67,10 @@ namespace mn::ipc
 		worker_block_clear();
 	}
 
-	LOCK_RESULT
+	bool
 	mutex_try_lock(Mutex mtx)
 	{
-		if(_mutex_try_lock(mtx, 0, 0))
-		{
-			return  LOCK_RESULT::OBTAINED;
-		}
-		else
-		{
-			return LOCK_RESULT::FAILED;
-		}
+		return _mutex_try_lock(mtx, 0, 0);
 	}
 
 	void

@@ -7,13 +7,6 @@ namespace mn::ipc
 {
 	typedef struct IIPC_Mutex *Mutex;
 
-	enum class LOCK_RESULT
-	{
-		OBTAINED,
-		ABANDONED,
-		FAILED
-	};
-
 	MN_EXPORT Mutex
 	mutex_new(const Str& name);
 
@@ -35,7 +28,7 @@ namespace mn::ipc
 	MN_EXPORT void
 	mutex_lock(Mutex self);
 
-	MN_EXPORT LOCK_RESULT
+	MN_EXPORT bool
 	mutex_try_lock(Mutex self);
 
 	MN_EXPORT void
