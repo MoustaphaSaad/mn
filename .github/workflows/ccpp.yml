@@ -9,10 +9,10 @@ on:
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    runs-on: [ubuntu-latest, macos-latest, windows-latest]
     
     steps:
-    - uses: actions/checkout@v2
+    - uses: jwsi/submodule-checkout@v1
     - name: configure debug
       run: cmake . -B build -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Debug
     - name: build debug
