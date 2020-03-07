@@ -1,0 +1,27 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v2
+    - name: configure debug
+      run: cmake . -B build -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Debug
+    - name: build debug
+      run: cmake --build build --config Debug
+    - name: unittests debug
+      run: ./build/bin/Debug/mn_unittest
+    - name: configure release
+      run: cmake . -B build -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release
+    - name: build release
+      run: cmake --build build --config Release
+    - name: unittests release
+      run: ./build/bin/Release/mn_unittest
