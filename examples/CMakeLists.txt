@@ -59,3 +59,9 @@ target_link_libraries(example-file-lock-reset
 	PRIVATE
 		MoustaphaSaad::mn
 )
+
+add_executable(playground playground.cpp)
+target_link_libraries(playground
+	PRIVATE
+		MoustaphaSaad::mn
+)
