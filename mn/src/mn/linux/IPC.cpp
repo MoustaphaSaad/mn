@@ -7,8 +7,8 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <sys/mman.h>
-#include <sys/types.h>
-#include <sys/stat.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 #include <unistd.h>
 #include <assert.h>
 
@@ -83,132 +83,138 @@ namespace mn::ipc
 
 
 	void
-	IPipe::dispose()
+	ISputnik::dispose()
 	{
-		pipe_free(this);
+		sputnik_free(this);
 	}
 
 	size_t
-	IPipe::read(mn::Block data)
+	ISputnik::read(mn::Block data)
 	{
-		return pipe_read(this, data);
+		return sputnik_read(this, data);
 	}
 
 	size_t
-	IPipe::write(mn::Block data)
+	ISputnik::write(mn::Block data)
 	{
-		return pipe_write(this, data);
+		return sputnik_write(this, data);
 	}
 
 	int64_t
-	IPipe::size()
+	ISputnik::size()
 	{
 		return 0;
 	}
 
-	Pipe
-	pipe_new(const mn::Str& name)
+	Sputnik
+	sputnik_new(const mn::Str& name)
 	{
-		auto res = ::mkfifo(name.ptr, 0666);
-		if(res == -1 && errno != EEXIST)
+		sockaddr_un addr{};
+		addr.sun_family = AF_LOCAL;
+		assert(name.count < sizeof(addr.sun_path) && "name is too long");
+		size_t name_length = name.count;
+		if(name.count >= sizeof(addr.sun_path))
+			name_length = sizeof(addr.sun_path);
+		::memcpy(addr.sun_path, name.ptr, name_length);
+
+		int handle = ::socket(AF_UNIX, SOCK_STREAM, 0);
+		if(handle < 0)
 			return nullptr;
-		auto handle = ::open(name.ptr, O_RDWR);
-		if(handle == -1)
+
+		::unlink(addr.sun_path);
+		auto res = ::bind(handle, (sockaddr*)&addr, SUN_LEN(&addr));
+		if(res < 0)
+		{
+			::close(handle);
 			return nullptr;
-		auto self = mn::alloc_construct<IPipe>();
-		self->linux_os.handle = handle;
-		self->linux_os.owner = true;
-		self->name = clone(name);
+		}
+		auto self = mn::alloc_construct<ISputnik>();
+		self->linux_domain_socket = handle;
+		self->name = mn::str_from_substr(name.ptr, name.ptr + name_length);
 		return self;
 	}
 
-	Pipe
-	pipe_connect(const mn::Str& name)
+	Sputnik
+	sputnik_connect(const mn::Str& name)
 	{
-		auto handle = ::open(name.ptr, O_RDWR);
-		if(handle == -1)
+		sockaddr_un addr{};
+		addr.sun_family = AF_LOCAL;
+		assert(name.count < sizeof(addr.sun_path) && "name is too long");
+		size_t name_length = name.count;
+		if(name.count >= sizeof(addr.sun_path))
+			name_length = sizeof(addr.sun_path);
+		::memcpy(addr.sun_path, name.ptr, name_length);
+
+		int handle = ::socket(AF_UNIX, SOCK_STREAM, 0);
+		if(handle < 0)
 			return nullptr;
 
-		auto self = mn::alloc_construct<IPipe>();
-		self->linux_os.handle = handle;
-		self->linux_os.owner = false;
-		self->name = clone(name);
-
-		// send the process id on connect
 		worker_block_ahead();
-		auto pid = ::getpid();
-		assert(sizeof(pid) == 4 && "pid is bigger than 4 bytes");
-		uint32_t pid_number = uint32_t(pid);
-		size_t write_size = sizeof(pid_number);
-		uint8_t* it = (uint8_t*)&pid_number;
-		while(write_size > 0)
+		if(::connect(handle, (sockaddr*)&addr, sizeof(sockaddr_un)) < 0)
 		{
-			auto res = ::write(self->linux_os.handle, it, write_size);
-			if(res == -1)
-				continue;
-			it += res;
-			write_size -= res;
+			::close(handle);
+			return nullptr;
 		}
 		worker_block_clear();
 
+		auto self = mn::alloc_construct<ISputnik>();
+		self->linux_domain_socket = handle;
+		self->name = mn::str_from_substr(name.ptr, name.ptr + name_length);
 		return self;
 	}
 
 	void
-	pipe_free(Pipe self)
+	sputnik_free(Sputnik self)
 	{
-		::close(self->linux_os.handle);
-		if(self->linux_os.owner)
-			::unlink(self->name.ptr);
+		::close(self->linux_domain_socket);
 		mn::str_free(self->name);
 		mn::free_destruct(self);
 	}
 
-	size_t
-	pipe_read(Pipe self, mn::Block data)
+	bool
+	sputnik_listen(Sputnik self)
 	{
 		worker_block_ahead();
-		auto res = ::read(self->linux_os.handle, data.ptr, data.size);
+		int res = ::listen(self->linux_domain_socket, SOMAXCONN);
+		worker_block_clear();
+		if (res == -1)
+			return false;
+		return true;
+	}
+
+	Sputnik
+	sputnik_accept(Sputnik self)
+	{
+		auto handle = ::accept(self->linux_domain_socket, 0, 0);
+		if(handle == -1)
+			return nullptr;
+		auto other = mn::alloc_construct<ISputnik>();
+		other->linux_domain_socket = handle;
+		other->name = clone(self->name);
+		return other;
+	}
+
+	size_t
+	sputnik_read(Sputnik self, Block data)
+	{
+		worker_block_ahead();
+		auto res = ::read(self->linux_domain_socket, data.ptr, data.size);
 		worker_block_clear();
 		return res;
 	}
 
 	size_t
-	pipe_write(Pipe self, mn::Block data)
+	sputnik_write(Sputnik self, Block data)
 	{
 		worker_block_ahead();
-		auto res = ::write(self->linux_os.handle, data.ptr, data.size);
+		auto res = ::write(self->linux_domain_socket, data.ptr, data.size);
 		worker_block_clear();
 		return res;
-	}
-
-	uint32_t
-	pipe_listen(Pipe self)
-	{
-		// wait for process id
-		uint32_t pid = 0;
-		size_t read_size = sizeof(pid);
-		uint8_t* it = (uint8_t*)&pid;
-		worker_block_ahead();
-		while(read_size > 0)
-		{
-			auto res = ::read(self->linux_os.handle, it, read_size);
-			if(res == -1)
-				continue;
-			assert(res >= 0);
-			it += res;
-			read_size -= res;
-		}
-		worker_block_clear();
-		return pid;
 	}
 
 	bool
-	pipe_disconnect(Pipe self)
+	sputnik_disconnect(Sputnik self)
 	{
-		if(self->linux_os.owner == false)
-			return false;
-		// actually do nothing
-		return true;
+		return ::unlink(self->name.ptr) == 0;
 	}
 }
