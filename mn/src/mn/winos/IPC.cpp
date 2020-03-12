@@ -67,31 +67,31 @@ namespace mn::ipc
 
 
 	void
-	IPipe::dispose()
+	ISputnik::dispose()
 	{
-		pipe_free(this);
+		sputnik_free(this);
 	}
 
 	size_t
-	IPipe::read(mn::Block data)
+	ISputnik::read(mn::Block data)
 	{
-		return pipe_read(this, data);
+		return sputnik_read(this, data);
 	}
 
 	size_t
-	IPipe::write(mn::Block data)
+	ISputnik::write(mn::Block data)
 	{
-		return pipe_write(this, data);
+		return sputnik_write(this, data);
 	}
 
 	int64_t
-	IPipe::size()
+	ISputnik::size()
 	{
 		return 0;
 	}
 
-	Pipe
-	pipe_new(const mn::Str& name)
+	Sputnik
+	sputnik_new(const mn::Str& name)
 	{
 		auto pipename = to_os_encoding(mn::str_tmpf("\\\\.\\pipe\\{}", name));
 		auto handle = CreateNamedPipe(
@@ -106,13 +106,14 @@ namespace mn::ipc
 		);
 		if (handle == INVALID_HANDLE_VALUE)
 			return nullptr;
-		auto self = mn::alloc_construct<IPipe>();
-		self->winos_handle = handle;
+		auto self = mn::alloc_construct<ISputnik>();
+		self->winos_named_pipe = handle;
+		self->name = clone(name);
 		return self;
 	}
 
-	Pipe
-	pipe_connect(const mn::Str& name)
+	Sputnik
+	sputnik_connect(const mn::Str& name)
 	{
 		auto pipename = to_os_encoding(mn::str_tmpf("\\\\.\\pipe\\{}", name));
 		auto handle = CreateFile(
@@ -126,27 +127,63 @@ namespace mn::ipc
 		);
 		if (handle == INVALID_HANDLE_VALUE)
 			return nullptr;
-		auto self = mn::alloc_construct<IPipe>();
-		self->winos_handle = handle;
+
+		auto self = mn::alloc_construct<ISputnik>();
+		self->winos_named_pipe = handle;
+		self->name = clone(name);
 		return self;
 	}
 
 	void
-	pipe_free(Pipe self)
+	sputnik_free(Sputnik self)
 	{
-		[[maybe_unused]] auto res = CloseHandle((HANDLE)self->winos_handle);
+		[[maybe_unused]] auto res = CloseHandle((HANDLE)self->winos_named_pipe);
 		assert(res == TRUE);
-
+		mn::str_free(self->name);
 		mn::free_destruct(self);
 	}
 
+	bool
+	sputnik_listen(Sputnik self)
+	{
+		worker_block_ahead();
+		auto res = ConnectNamedPipe((HANDLE)self->winos_named_pipe, NULL);
+		worker_block_clear();
+		return res;
+	}
+
+	Sputnik
+	sputnik_accept(Sputnik self)
+	{
+		auto pipename = to_os_encoding(mn::str_tmpf("\\\\.\\pipe\\{}", self->name));
+		auto handle = CreateNamedPipe(
+			(LPCWSTR)pipename.ptr,
+			PIPE_ACCESS_DUPLEX,
+			PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_REJECT_REMOTE_CLIENTS,
+			PIPE_UNLIMITED_INSTANCES,
+			4ULL * 1024ULL,
+			4ULL * 1024ULL,
+			NMPWAIT_USE_DEFAULT_WAIT,
+			NULL
+		);
+		if (handle == INVALID_HANDLE_VALUE)
+			return nullptr;
+		auto other = mn::alloc_construct<ISputnik>();
+		other->winos_named_pipe = self->winos_named_pipe;
+		other->name = clone(self->name);
+
+		self->winos_named_pipe = handle;
+
+		return other;
+	}
+
 	size_t
-	pipe_read(Pipe self, mn::Block data)
+	sputnik_read(Sputnik self, mn::Block data)
 	{
 		DWORD res = 0;
 		worker_block_ahead();
 		ReadFile(
-			(HANDLE)self->winos_handle,
+			(HANDLE)self->winos_named_pipe,
 			data.ptr,
 			DWORD(data.size),
 			&res,
@@ -157,12 +194,12 @@ namespace mn::ipc
 	}
 
 	size_t
-	pipe_write(Pipe self, mn::Block data)
+	sputnik_write(Sputnik self, mn::Block data)
 	{
 		DWORD res = 0;
 		worker_block_ahead();
 		WriteFile(
-			(HANDLE)self->winos_handle,
+			(HANDLE)self->winos_named_pipe,
 			data.ptr,
 			DWORD(data.size),
 			&res,
@@ -173,20 +210,11 @@ namespace mn::ipc
 	}
 
 	bool
-	pipe_listen(Pipe self)
+	sputnik_disconnect(Sputnik self)
 	{
 		worker_block_ahead();
-		auto res = ConnectNamedPipe((HANDLE)self->winos_handle, NULL);
-		worker_block_clear();
-		return res;
-	}
-
-	bool
-	pipe_disconnect(Pipe self)
-	{
-		worker_block_ahead();
-		FlushFileBuffers((HANDLE)self->winos_handle);
-		auto res = DisconnectNamedPipe((HANDLE)self->winos_handle);
+		FlushFileBuffers((HANDLE)self->winos_named_pipe);
+		auto res = DisconnectNamedPipe((HANDLE)self->winos_named_pipe);
 		worker_block_clear();
 		return res;
 	}

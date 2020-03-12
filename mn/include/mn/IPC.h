@@ -35,19 +35,14 @@ namespace mn::ipc
 	MN_EXPORT void
 	mutex_unlock(Mutex self);
 
-	// OS Named Pipes
-	typedef struct IPipe* Pipe;
-	struct IPipe final : IStream
+	// OS communication primitives
+	typedef struct ISputnik* Sputnik;
+	struct ISputnik final : IStream
 	{
 		union
 		{
-			void* winos_handle;
-
-			struct
-			{
-				int handle;
-				bool owner;
-			} linux_os;
+			void* winos_named_pipe;
+			int linux_domain_socket;
 		};
 		mn::Str name;
 
@@ -64,36 +59,39 @@ namespace mn::ipc
 		size() override;
 	};
 
-	MN_EXPORT Pipe
-	pipe_new(const mn::Str& name);
+	MN_EXPORT Sputnik
+	sputnik_new(const mn::Str& name);
 
-	inline static Pipe
-	pipe_new(const char* name)
+	inline static Sputnik
+	sputnik_new(const char* name)
 	{
-		return pipe_new(mn::str_lit(name));
+		return sputnik_new(mn::str_lit(name));
 	}
 
-	MN_EXPORT Pipe
-	pipe_connect(const mn::Str& name);
+	MN_EXPORT Sputnik
+	sputnik_connect(const mn::Str& name);
 
-	inline static Pipe
-	pipe_connect(const char* name)
+	inline static Sputnik
+	sputnik_connect(const char* name)
 	{
-		return pipe_connect(mn::str_lit(name));
+		return sputnik_connect(mn::str_lit(name));
 	}
 
 	MN_EXPORT void
-	pipe_free(Pipe self);
-
-	MN_EXPORT size_t
-	pipe_read(Pipe self, mn::Block data);
-
-	MN_EXPORT size_t
-	pipe_write(Pipe self, mn::Block data);
-
-	MN_EXPORT uint32_t
-	pipe_listen(Pipe self);
+	sputnik_free(Sputnik self);
 
 	MN_EXPORT bool
-	pipe_disconnect(Pipe self);
+	sputnik_listen(Sputnik self);
+
+	MN_EXPORT Sputnik
+	sputnik_accept(Sputnik self);
+
+	MN_EXPORT size_t
+	sputnik_read(Sputnik self, mn::Block data);
+
+	MN_EXPORT size_t
+	sputnik_write(Sputnik self, mn::Block data);
+
+	MN_EXPORT bool
+	sputnik_disconnect(Sputnik self);
 }
