@@ -42,7 +42,14 @@ namespace mn::ipc
 		union
 		{
 			void* winos_handle;
+
+			struct
+			{
+				int handle;
+				bool owner;
+			} linux_os;
 		};
+		mn::Str name;
 
 		MN_EXPORT void
 		dispose() override;
@@ -84,7 +91,7 @@ namespace mn::ipc
 	MN_EXPORT size_t
 	pipe_write(Pipe self, mn::Block data);
 
-	MN_EXPORT bool
+	MN_EXPORT uint32_t
 	pipe_listen(Pipe self);
 
 	MN_EXPORT bool
