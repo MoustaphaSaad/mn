@@ -218,4 +218,53 @@ namespace mn::ipc
 		worker_block_clear();
 		return res;
 	}
+
+	void
+	sputnik_msg_write(Sputnik self, Block data)
+	{
+		uint64_t len = data.size;
+		sputnik_write(self, block_from(len));
+		sputnik_write(self, data);
+	}
+
+	Msg_Read_Return
+	sputnik_msg_read(Sputnik self, Block data)
+	{
+		// if we don't have any remaining bytes in the message
+		if(self->read_msg_size == 0)
+		{
+			uint8_t* it = (uint8_t*)&self->read_msg_size;
+			size_t read_size = sizeof(self->read_msg_size);
+			while(read_size > 0)
+			{
+				auto res = sputnik_read(self, {it, read_size});
+				it += res;
+				read_size -= res;
+			}
+		}
+
+		// try reading a block of the message
+		size_t read_size = data.size;
+		if(data.size > self->read_msg_size)
+			read_size = self->read_msg_size;
+		auto res = sputnik_read(self, {data.ptr, read_size});
+		self->read_msg_size -= res;
+		return {res, self->read_msg_size};
+	}
+
+	Str
+	sputnik_msg_read_alloc(Sputnik self, Allocator allocator)
+	{
+		auto block = str_with_allocator(allocator);
+		if(self->read_msg_size != 0)
+			return block;
+
+		auto [consumed, remaining] = sputnik_msg_read(self, {});
+		assert(consumed == 0);
+
+		str_resize(block, remaining);
+		auto [consumed2, remaining2] = sputnik_msg_read(self, block_from(block));
+		assert(consumed2 == remaining && remaining2 == 0);
+		return block;
+	}
 }

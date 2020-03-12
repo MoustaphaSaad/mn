@@ -45,6 +45,7 @@ namespace mn::ipc
 			int linux_domain_socket;
 		};
 		mn::Str name;
+		uint64_t read_msg_size;
 
 		MN_EXPORT void
 		dispose() override;
@@ -94,4 +95,24 @@ namespace mn::ipc
 
 	MN_EXPORT bool
 	sputnik_disconnect(Sputnik self);
+
+	// sputnik message protocol
+
+	// sputnik_msg_write writes a message unit to sputnik which is {len: 8 bytes, the message}
+	MN_EXPORT void
+	sputnik_msg_write(Sputnik self, Block data);
+
+	struct Msg_Read_Return
+	{
+		size_t consumed;
+		uint64_t remaining;
+	};
+
+	// sputnik_msg_read reads a message unit from sputnik
+	MN_EXPORT Msg_Read_Return
+	sputnik_msg_read(Sputnik self, Block data);
+
+	// sputnik_msg_read_alloc allocates and reads a single message
+	MN_EXPORT Str
+	sputnik_msg_read_alloc(Sputnik self, Allocator allocator = allocator_top());
 }

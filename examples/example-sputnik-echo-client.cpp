@@ -4,6 +4,29 @@
 
 #include <assert.h>
 
+void
+byte_client(mn::ipc::Sputnik client, mn::Str& line)
+{
+	auto write_bytes = mn::ipc::sputnik_write(client, mn::block_from(line));
+	assert(write_bytes == line.count && "sputnik_write failed");
+
+	mn::str_resize(line, 1024);
+	auto read_bytes = mn::ipc::sputnik_read(client, mn::block_from(line));
+	assert(read_bytes == write_bytes);
+
+	mn::str_resize(line, read_bytes);
+	mn::print("server: '{}'\n", line);
+}
+
+void
+msg_client(mn::ipc::Sputnik client, mn::Str& line)
+{
+	mn::ipc::sputnik_msg_write(client, mn::block_from(line));
+	auto msg = mn::ipc::sputnik_msg_read_alloc(client);
+	mn::print("server: '{}'\n", line);
+	mn::str_free(msg);
+}
+
 int
 main()
 {
@@ -24,15 +47,11 @@ main()
 
 		mn::print("you write: '{}'\n", line);
 
-		write_bytes = mn::ipc::sputnik_write(client, mn::block_from(line));
-		assert(write_bytes == line.count && "sputnik_write failed");
-
-		mn::str_resize(line, 1024);
-		read_bytes = mn::ipc::sputnik_read(client, mn::block_from(line));
-		assert(read_bytes == write_bytes);
-
-		mn::str_resize(line, read_bytes);
-		mn::print("server: '{}'\n", line);
+		// client byte stream
+		//byte_client(client, line);
+		// client msg units
+		msg_client(client, line);
+		read_bytes = 1;
 	} while(read_bytes > 0);
 
 	return 0;
