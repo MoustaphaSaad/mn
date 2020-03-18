@@ -88,7 +88,7 @@ namespace mn::ipc
 	sputnik_accept(Sputnik self);
 
 	MN_EXPORT size_t
-	sputnik_read(Sputnik self, mn::Block data);
+	sputnik_read(Sputnik self, mn::Block data, Timeout timeout);
 
 	MN_EXPORT size_t
 	sputnik_write(Sputnik self, mn::Block data);
@@ -110,9 +110,9 @@ namespace mn::ipc
 
 	// sputnik_msg_read reads a message unit from sputnik
 	MN_EXPORT Msg_Read_Return
-	sputnik_msg_read(Sputnik self, Block data);
+	sputnik_msg_read(Sputnik self, Block data, Timeout timeout);
 
 	// sputnik_msg_read_alloc allocates and reads a single message
 	MN_EXPORT Str
-	sputnik_msg_read_alloc(Sputnik self, Allocator allocator = allocator_top());
+	sputnik_msg_read_alloc(Sputnik self, Timeout timeout, Allocator allocator = allocator_top());
 }

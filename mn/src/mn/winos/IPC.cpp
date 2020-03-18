@@ -75,7 +75,7 @@ namespace mn::ipc
 	size_t
 	ISputnik::read(mn::Block data)
 	{
-		return sputnik_read(this, data);
+		return sputnik_read(this, data,  INFINITE_TIMEOUT);
 	}
 
 	size_t
@@ -178,19 +178,25 @@ namespace mn::ipc
 	}
 
 	size_t
-	sputnik_read(Sputnik self, mn::Block data)
+	sputnik_read(Sputnik self, mn::Block data, Timeout timeout)
 	{
 		DWORD res = 0;
-		worker_block_ahead();
-		ReadFile(
-			(HANDLE)self->winos_named_pipe,
-			data.ptr,
-			DWORD(data.size),
-			&res,
-			NULL
-		);
-		worker_block_clear();
-		return res;
+		DWORD available = 0;
+		DWORD left = 0;
+
+		worker_block_on_with_timeout(timeout,[&self, &data, &res,&available,&left]{
+			PeekNamedPipe(
+				(HANDLE)self->winos_named_pipe,
+				data.ptr,
+				DWORD(data.size),
+				&res,
+				&available,
+				&left);
+
+			return  res;
+		});
+
+		return NULL;
 	}
 
 	size_t
@@ -228,7 +234,7 @@ namespace mn::ipc
 	}
 
 	Msg_Read_Return
-	sputnik_msg_read(Sputnik self, Block data)
+	sputnik_msg_read(Sputnik self, Block data, Timeout timeout)
 	{
 		// if we don't have any remaining bytes in the message
 		if(self->read_msg_size == 0)
@@ -237,7 +243,7 @@ namespace mn::ipc
 			size_t read_size = sizeof(self->read_msg_size);
 			while(read_size > 0)
 			{
-				auto res = sputnik_read(self, {it, read_size});
+				auto res = sputnik_read(self, { it, read_size }, INFINITE_TIMEOUT); // toback here
 				it += res;
 				read_size -= res;
 			}
@@ -247,23 +253,23 @@ namespace mn::ipc
 		size_t read_size = data.size;
 		if(data.size > self->read_msg_size)
 			read_size = self->read_msg_size;
-		auto res = sputnik_read(self, {data.ptr, read_size});
+		auto res = sputnik_read(self, {data.ptr, read_size}, timeout);
 		self->read_msg_size -= res;
 		return {res, self->read_msg_size};
 	}
 
 	Str
-	sputnik_msg_read_alloc(Sputnik self, Allocator allocator)
+	sputnik_msg_read_alloc(Sputnik self, Timeout timeout, Allocator allocator)
 	{
 		auto block = str_with_allocator(allocator);
 		if(self->read_msg_size != 0)
 			return block;
 
-		auto [consumed, remaining] = sputnik_msg_read(self, {});
+		auto [consumed, remaining] = sputnik_msg_read(self, {}, timeout);
 		assert(consumed == 0);
 
 		str_resize(block, remaining);
-		auto [consumed2, remaining2] = sputnik_msg_read(self, block_from(block));
+		auto [consumed2, remaining2] = sputnik_msg_read(self, block_from(block), timeout);
 		assert(consumed2 == remaining && remaining2 == 0);
 		return block;
 	}
