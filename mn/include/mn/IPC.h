@@ -87,7 +87,14 @@ namespace mn::ipc
 	MN_EXPORT Sputnik
 	sputnik_accept(Sputnik self);
 
-	MN_EXPORT size_t
+	struct Read_Return
+	{
+		DWORD result;
+		DWORD left;
+		DWORD available;
+	};
+
+	MN_EXPORT Read_Return
 	sputnik_read(Sputnik self, mn::Block data, Timeout timeout);
 
 	MN_EXPORT size_t

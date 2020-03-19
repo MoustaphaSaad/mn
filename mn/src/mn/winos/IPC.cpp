@@ -177,26 +177,24 @@ namespace mn::ipc
 		return other;
 	}
 
-	size_t
+	Read_Return
 	sputnik_read(Sputnik self, mn::Block data, Timeout timeout)
 	{
-		DWORD res = 0;
-		DWORD available = 0;
-		DWORD left = 0;
+		Read_Return res;
 
-		worker_block_on_with_timeout(timeout,[&self, &data, &res,&available,&left]{
+		worker_block_on_with_timeout(timeout,[&self, &data, &res]{
 			PeekNamedPipe(
 				(HANDLE)self->winos_named_pipe,
 				data.ptr,
 				DWORD(data.size),
-				&res,
-				&available,
-				&left);
+				&res.result,
+				&res.available,
+				&res.left);
 
-			return  res;
+			return res;
 		});
 
-		return NULL;
+		return Read_Return{};
 	}
 
 	size_t
@@ -236,6 +234,9 @@ namespace mn::ipc
 	Msg_Read_Return
 	sputnik_msg_read(Sputnik self, Block data, Timeout timeout)
 	{
+		// we have data of raiming message from read_return 
+		// but i dont know how to use it ..
+
 		// if we don't have any remaining bytes in the message
 		if(self->read_msg_size == 0)
 		{
@@ -243,9 +244,9 @@ namespace mn::ipc
 			size_t read_size = sizeof(self->read_msg_size);
 			while(read_size > 0)
 			{
-				auto res = sputnik_read(self, { it, read_size }, INFINITE_TIMEOUT); // toback here
-				it += res;
-				read_size -= res;
+				auto res = sputnik_read(self, { it, read_size }, INFINITE_TIMEOUT);
+				it += res.result;
+				read_size -= res.result;
 			}
 		}
 
@@ -254,8 +255,8 @@ namespace mn::ipc
 		if(data.size > self->read_msg_size)
 			read_size = self->read_msg_size;
 		auto res = sputnik_read(self, {data.ptr, read_size}, timeout);
-		self->read_msg_size -= res;
-		return {res, self->read_msg_size};
+		self->read_msg_size -= res.result;
+		return {res.result, self->read_msg_size};
 	}
 
 	Str
