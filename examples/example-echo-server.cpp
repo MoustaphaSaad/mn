@@ -48,8 +48,11 @@ main()
 
 	while(socket_listen(socket))
 	{
-		auto client_socket = mn::socket_accept(socket);
-		mn::go(f, [client_socket]{ serve_client(client_socket); });
+		auto client_socket = mn::socket_accept(socket, { 1000 });
+		if (client_socket)
+			mn::go(f, [client_socket] { serve_client(client_socket); });
+		else
+			mn::print("socket accept timed out, trying again\n");
 	}
 	return 0;
 }

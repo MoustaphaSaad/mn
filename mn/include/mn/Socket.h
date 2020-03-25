@@ -71,7 +71,7 @@ namespace mn
 	socket_listen(Socket self, int max_connections = 0);
 
 	MN_EXPORT Socket
-	socket_accept(Socket self);
+	socket_accept(Socket self, Timeout timeout);
 
 	MN_EXPORT void
 	socket_disconnect(Socket self);

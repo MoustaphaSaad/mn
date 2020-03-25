@@ -60,8 +60,15 @@ main()
 
 	while(mn::ipc::sputnik_listen(server))
 	{
-		auto client = mn::ipc::sputnik_accept(server);
-		mn::go(f, [client]{ serve_client_msg(client); });
+		auto client = mn::ipc::sputnik_accept(server, { 10000 });
+		if (client)
+		{
+			mn::go(f, [client] { serve_client_msg(client); });
+		}
+		else
+		{
+			mn::print("accept timed out, trying again\n");
+		}
 	}
 	return 0;
 }

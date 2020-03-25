@@ -146,15 +146,42 @@ namespace mn::ipc
 	bool
 	sputnik_listen(Sputnik self)
 	{
-		worker_block_ahead();
-		auto res = ConnectNamedPipe((HANDLE)self->winos_named_pipe, NULL);
-		worker_block_clear();
-		return res;
+		// this function doesn't map to anything on windows since in socket api it's used to change the state of a socket
+		// to be able to accept connections, in named pipes on windows however this is unnecessary
+		return true;
 	}
 
 	Sputnik
-	sputnik_accept(Sputnik self)
+	sputnik_accept(Sputnik self, Timeout timeout)
 	{
+		// Wait for the Connection
+		{
+			OVERLAPPED overlapped{};
+			overlapped.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+			mn_defer(CloseHandle(overlapped.hEvent));
+
+			worker_block_ahead();
+			mn_defer(worker_block_clear());
+
+			auto connected = ConnectNamedPipe((HANDLE)self->winos_named_pipe, &overlapped);
+			auto last_error = GetLastError();
+			if (connected == FALSE && last_error != ERROR_IO_PENDING && last_error != ERROR_PIPE_CONNECTED)
+				return nullptr;
+
+			DWORD milliseconds = 0;
+			if (timeout == INFINITE_TIMEOUT)
+				milliseconds = INFINITE;
+			else if (timeout == NO_TIMEOUT)
+				milliseconds = 0;
+			else
+				milliseconds = DWORD(timeout.milliseconds);
+
+			auto wakeup = WaitForSingleObject(overlapped.hEvent, milliseconds);
+			if (wakeup != WAIT_OBJECT_0)
+				return nullptr;
+		}
+
+		// accept the connection
 		auto pipename = to_os_encoding(mn::str_tmpf("\\\\.\\pipe\\{}", self->name));
 		auto handle = CreateNamedPipe(
 			(LPCWSTR)pipename.ptr,
@@ -206,7 +233,7 @@ namespace mn::ipc
 	}
 
 	size_t
-	sputnik_write(Sputnik self, mn::Block data)
+	sputnik_write(Sputnik self, Block data)
 	{
 		DWORD bytes_written = 0;
 		worker_block_ahead();

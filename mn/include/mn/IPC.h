@@ -85,13 +85,13 @@ namespace mn::ipc
 	sputnik_listen(Sputnik self);
 
 	MN_EXPORT Sputnik
-	sputnik_accept(Sputnik self);
+	sputnik_accept(Sputnik self, Timeout timeout);
 
 	MN_EXPORT size_t
 	sputnik_read(Sputnik self, Block data, Timeout timeout);
 
 	MN_EXPORT size_t
-	sputnik_write(Sputnik self, mn::Block data);
+	sputnik_write(Sputnik self, Block data);
 
 	MN_EXPORT bool
 	sputnik_disconnect(Sputnik self);
