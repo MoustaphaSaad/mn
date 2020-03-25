@@ -156,11 +156,29 @@ namespace mn
 	}
 
 	Socket
-	socket_accept(Socket self)
+	socket_accept(Socket self, Timeout timeout)
 	{
-		worker_block_ahead();
+		pollfd pfd_read{};
+		pfd_read.fd = self->handle;
+		pfd_read.events = POLLIN;
+
+		int milliseconds = 0;
+		if(timeout == INFINITE_TIMEOUT)
+			milliseconds = -1;
+		else if(timeout == NO_TIMEOUT)
+			milliseconds = 0;
+		else
+			milliseconds = int(timeout.milliseconds);
+
+		{
+			worker_block_ahead();
+			mn_defer(worker_block_clear());
+
+			int ready = poll(&pfd_read, 1, milliseconds);
+			if(ready == 0)
+				return nullptr;
+		}
 		auto handle = ::accept(self->handle, nullptr, nullptr);
-		worker_block_clear();
 		if(handle == -1)
 			return nullptr;
 
@@ -192,7 +210,7 @@ namespace mn
 		else
 			milliseconds = int(timeout.milliseconds);
 
-		size_t res = 0;
+		ssize_t res = 0;
 		worker_block_ahead();
 		int ready = poll(&pfd_read, 1, milliseconds);
 		if(ready > 0)
