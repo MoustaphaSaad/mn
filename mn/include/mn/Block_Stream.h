@@ -72,6 +72,7 @@ namespace mn
 		size_t available_size = self.data.size - self.cursor;
 		size_t read_size = available_size > data.size ? data.size : available_size;
 		::memcpy(data.ptr, (char*)self.data.ptr + self.cursor, read_size);
+		self.cursor += read_size;
 		return read_size;
 	}
 
