@@ -273,6 +273,23 @@ namespace mn
 		return res;
 	}
 
+	int64_t
+	file_last_write_time(const char* path)
+	{
+		auto os_path = path_os_encoding(path, allocator_top());
+		mn_defer(str_free(os_path));
+
+		auto os_str = to_os_encoding(os_path, allocator_top());
+		mn_defer(mn::free(os_str));
+
+		WIN32_FILE_ATTRIBUTE_DATA data{};
+		BOOL res = GetFileAttributesEx((LPCWSTR)os_str.ptr, GetFileExInfoStandard, &data);
+		if (res == FALSE)
+			return 0;
+
+		return (int64_t(data.ftLastWriteTime.dwHighDateTime) << 32) | int64_t(data.ftLastWriteTime.dwLowDateTime);
+	}
+
 	//Tip 
 	//Starting with Windows 10, version 1607, for the unicode version of this function (MoveFileW),
 	//you can opt-in to remove the MAX_PATH limitation without prepending "\\?\". See the

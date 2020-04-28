@@ -43,6 +43,7 @@ set(HEADER_FILES
 	include/mn/Socket.h
 	include/mn/Library.h
 	include/mn/Process.h
+	include/mn/Root.h
 	include/utf8proc/utf8proc.h
 )
 
@@ -65,6 +66,7 @@ set(SOURCE_FILES
 	src/mn/Rune.cpp
 	src/mn/Context.cpp
 	src/mn/Fabric.cpp
+	src/mn/Root.cpp
 	src/utf8proc/utf8proc.cpp
 )
 

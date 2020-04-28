@@ -229,6 +229,20 @@ namespace mn
 		return path_entries(path.ptr, allocator);
 	}
 
+	// file_last_write_time returns the time of the last write to the given file
+	// if path is not correct it will return 0
+	MN_EXPORT int64_t
+	file_last_write_time(const char* path);
+
+	// file_last_write_time returns the time of the last write to the given file
+	// if path is not correct it will return 0
+	inline static int64_t
+	file_last_write_time(const mn::Str& path)
+	{
+		return file_last_write_time(path.ptr);
+	}
+
+
 	/**
 	 * @brief      Copies a file from src to dst
 	 *

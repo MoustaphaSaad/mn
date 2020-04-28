@@ -77,3 +77,24 @@ target_link_libraries(mn_playground
 	PRIVATE
 		MoustaphaSaad::mn
 )
+
+add_library(hot_reload_lib SHARED
+	hot_reload_lib.h
+	hot_reload_lib.cpp
+)
+target_link_libraries(hot_reload_lib
+	PRIVATE
+		MoustaphaSaad::mn
+)
+# generate exports header file
+include(GenerateExportHeader)
+generate_export_header(hot_reload_lib
+	EXPORT_FILE_NAME ${CMAKE_CURRENT_SOURCE_DIR}/hot_reload_lib_exports.h
+)
+
+
+add_executable(hot_reload_app hot_reload_app.cpp)
+target_link_libraries(hot_reload_app
+	PRIVATE
+		MoustaphaSaad::mn
+)

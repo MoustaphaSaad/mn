@@ -48,5 +48,6 @@
 #include "mn/Str.cpp"
 #include "mn/Str_Intern.cpp"
 #include "mn/Stream.cpp"
+#include "mn/Root.cpp"
 
 #include "utf8proc/utf8proc.cpp"
