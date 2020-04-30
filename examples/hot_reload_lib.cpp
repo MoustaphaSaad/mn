@@ -20,7 +20,7 @@ namespace hot_reload_lib
 }
 
 void*
-mn_load_api(void* old_api, bool reload)
+rad_api(void* old_api, bool reload)
 {
 	// first time call 
 	if (old_api == nullptr)
@@ -31,7 +31,7 @@ mn_load_api(void* old_api, bool reload)
 	// reload request
 	else if (old_api != nullptr && reload)
 	{
-		mn::print("hot_reload_lib reload happened YAAAAAY\n");
+		mn::print("hot_reload_lib reload happened\n");
 		return old_api;
 	}
 	// destroy request

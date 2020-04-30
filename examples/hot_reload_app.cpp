@@ -1,8 +1,9 @@
 #include <mn/IO.h>
-#include <mn/Root.h>
 #include <mn/Defer.h>
 #include <mn/Thread.h>
 #include <mn/Path.h>
+
+#include <rad/RAD.h>
 
 #include "hot_reload_lib.h"
 
@@ -13,11 +14,11 @@ int main(int argc, char** argv)
 
 	mn::print("Hello, World!\n");
 
-	auto root = mn::root_new();
-	mn_defer(mn::root_free(root));
+	auto rad = rad_new();
+	mn_defer(rad_free(rad));
 
 	// load
-	if(mn::root_register(root, HOT_RELOAD_LIB_NAME, "hot_reload_lib.dll") == false)
+	if(rad_register(rad, HOT_RELOAD_LIB_NAME, "hot_reload_lib.dll") == false)
 	{
 		mn::printerr("can't load library\n");
 		return EXIT_FAILURE;
@@ -25,10 +26,10 @@ int main(int argc, char** argv)
 
 	for(;;)
 	{
-		auto foo = mn::root_api<hot_reload_lib::Foo>(root, HOT_RELOAD_LIB_NAME);
+		auto foo = rad_api<hot_reload_lib::Foo>(rad, HOT_RELOAD_LIB_NAME);
 		mn::print("foo.x: {}\n", foo->x++);
 		mn::thread_sleep(1000);
-		mn::root_update(root);
+		rad_update(rad);
 	}
 	return 0;
 }

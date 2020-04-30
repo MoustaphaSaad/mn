@@ -10,5 +10,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_subdirectory(fmt-6.2.0 EXCLUDE_FROM_ALL)
 add_subdirectory(mn)
+add_subdirectory(rad)
 add_subdirectory(unittest)
 add_subdirectory(examples)

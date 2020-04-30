@@ -85,6 +85,7 @@ add_library(hot_reload_lib SHARED
 target_link_libraries(hot_reload_lib
 	PRIVATE
 		MoustaphaSaad::mn
+		MoustaphaSaad::rad
 )
 # generate exports header file
 include(GenerateExportHeader)
@@ -97,4 +98,5 @@ add_executable(hot_reload_app hot_reload_app.cpp)
 target_link_libraries(hot_reload_app
 	PRIVATE
 		MoustaphaSaad::mn
+		MoustaphaSaad::rad
 )

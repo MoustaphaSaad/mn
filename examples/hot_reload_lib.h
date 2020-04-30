@@ -19,4 +19,4 @@ namespace hot_reload_lib
 #define HOT_RELOAD_LIB_NAME "hot_reload_lib"
 
 extern "C" HOT_RELOAD_LIB_EXPORT void*
-mn_load_api(void* old_api, bool reload);
+rad_api(void* old_api, bool reload);
