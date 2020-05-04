@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.9)
+cmake_minimum_required(VERSION 3.16)
 
 # list the header files
 set(HEADER_FILES
@@ -117,24 +117,19 @@ if(MSVC)
 endif(MSVC)
 
 
-# unity build files
-set(UNITY_BUILD_FILES
-	src/Build.cpp
-)
-
-# ignore source files
-foreach(SRC_FILE ${SOURCE_FILES})
-	set_source_files_properties(${SRC_FILE} PROPERTIES HEADER_FILE_ONLY true)
-endforeach(SRC_FILE)
-
-
 # add library target
-add_library(mn
-	${HEADER_FILES}
-	${SOURCE_FILES}
-	${UNITY_BUILD_FILES}
-	${TOOL_FILES}
-)
+add_library(mn)
+
+target_sources(mn
+    PRIVATE ${HEADER_FILES}
+            ${SOURCE_FILES}
+            ${TOOL_FILES})
+
+if (MN_UNITY_BUILD)        
+set_target_properties(mn
+    PROPERTIES UNITY_BUILD_BATCH_SIZE 0
+               UNITY_BUILD true)
+endif()
 
 add_library(MoustaphaSaad::mn ALIAS mn)
 
@@ -146,7 +141,6 @@ target_link_libraries(mn
 # make it reflect the same structure as the one on disk
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${HEADER_FILES})
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCE_FILES})
-source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${UNITY_BUILD_FILES})
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${TOOL_FILES})
 
 
