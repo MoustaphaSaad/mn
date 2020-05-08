@@ -319,6 +319,11 @@ namespace mn
 					}
 				}
 			}
+
+			// we only move blocked workers in case of all system blockage, other than this it's a normal thing
+			// to have some of the workers blocked doing work
+			if (blocking_workers.count < self->workers.count)
+				buf_clear(blocking_workers);
 			mutex_read_unlock(self->workers_mtx);
 
 			// request all the blocking workers to pause
