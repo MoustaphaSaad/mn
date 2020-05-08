@@ -144,51 +144,25 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCE_FILES})
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${TOOL_FILES})
 
 
-# Windows specfic flags to enable W variations of winapi
-if(WIN32)
-	target_compile_definitions(mn
-		PRIVATE
-			UNICODE=1
-			_UNICODE=1
-		PUBLIC
-			OS_WINDOWS=1
-	)
-	target_link_libraries(mn
-		PRIVATE
-			dbghelp
-			ws2_32
-	)
-	target_compile_options(mn
-		PRIVATE
-			/W4
-	)
-elseif(UNIX AND NOT APPLE) 
-	target_link_libraries(mn
-		PRIVATE
-			pthread rt dl
-	)
-	target_compile_definitions(mn
-		PUBLIC
-			OS_LINUX=1
-	)
-	target_compile_options(mn
-		PRIVATE
-			-Wall
-	)
-elseif(APPLE) 
-	target_link_libraries(mn
-		PRIVATE
-			pthread dl
-	)
-	target_compile_definitions(mn
-		PUBLIC
-			OS_MACOS=1
-	)
-	target_compile_options(mn
-		PRIVATE
-			-Wall
-	)
-endif()
+target_compile_definitions(mn
+    PRIVATE
+        $<$<PLATFORM_ID:Windows>:UNICODE;_UNICODE>
+    PUBLIC
+        $<$<PLATFORM_ID:Windows>:OS_WINDOWS=1>
+        $<$<PLATFORM_ID:Linux>:OS_LINUX=1>
+        $<$<PLATFORM_ID:Apple>:OS_MACOS=1>)
+
+target_compile_options(mn
+    PRIVATE
+        $<$<CXX_COMPILER_ID:MSVC>:/W4>
+        $<$<CXX_COMPILER_ID:GNU>:-Wall>
+        $<$<CXX_COMPILER_ID:Clang>:-Wall>)
+
+target_link_libraries(mn
+    PRIVATE
+        "$<$<PLATFORM_ID:Windows>:dbghelp;ws2_32>"
+        "$<$<PLATFORM_ID:Linux>:pthread;rt;dl>"
+        "$<$<PLATFORM_ID:Apple>:pthread;dl>")
 
 if(MN_LEAK)
 	message(STATUS "Leak Detector enabled")
