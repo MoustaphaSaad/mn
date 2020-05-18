@@ -2,6 +2,7 @@
 #include "mn/memory/CLib.h"
 #include "mn/Debug.h"
 #include "mn/Context.h"
+#include "mn/File.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -25,14 +26,14 @@ namespace mn::memory
 		while (it)
 		{
 			::fprintf(stderr, "Leak size: %zu, call stack:\n", it->size);
-			if (it->callstack.count == 0)
+			#if DEBUG
+				callstack_print_to(it->callstack, Leak::CALLSTACK_MAX_FRAMES, file_stderr());
+			#else
 				::fprintf(stderr, "run in debug mode to get call stack info\n");
-			else
-				::fprintf(stderr, "%s\n", it->callstack.ptr);
+			#endif
 
 			++count;
 			size += it->size;
-			str_free(it->callstack);
 			it = it->next;
 		}
 		::fprintf(stderr, "Leaks count: %zu, Leaks size(bytes): %zu\n", count, size);
@@ -57,7 +58,7 @@ namespace mn::memory
 			this->head = ptr;
 		mutex_unlock(this->mtx);
 
-		ptr->callstack = callstack_dump(clib());
+		callstack_capture(ptr->callstack, Leak::CALLSTACK_MAX_FRAMES);
 		auto res = Block{ ptr + 1, size };
 		memory_profile_alloc(res.ptr, res.size);
 		return res;
@@ -81,7 +82,6 @@ namespace mn::memory
 				ptr->next->prev = ptr->prev;
 			mutex_unlock(this->mtx);
 
-			str_free(ptr->callstack);
 			memory_profile_free(block.ptr, block.size);
 			::free(ptr);
 		}

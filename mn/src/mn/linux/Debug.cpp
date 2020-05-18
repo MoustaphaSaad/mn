@@ -8,22 +8,18 @@
 
 namespace mn
 {
-	Str
-	callstack_dump(Allocator allocator)
+	size_t
+	callstack_capture(void** frames, size_t frames_count)
 	{
-		Str str = str_with_allocator(allocator);
-		constexpr size_t MAX_NAME_LEN = 1024;
-		constexpr size_t STACK_MAX = 4096;
-		void* callstack[STACK_MAX];
+		::memset(frames, 0, frames_count * sizeof(frames));
+		return backtrace(frames, frames_count);
+	}
 
-		//+1 for null terminated string
-		char name_buffer[MAX_NAME_LEN+1];
-
-		//capture the call stack
-		size_t frames_count = backtrace(callstack, STACK_MAX);
-		//resolve the symbols
-		char** symbols = backtrace_symbols(callstack, frames_count);
-
+	void
+	callstack_print_to(void** frames, size_t frames_count, mn::Stream out)
+	{
+		#if DEBUG
+		char** symbols = backtrace_symbols(frames, frames_count);
 		if(symbols)
 		{
 			for(size_t i = 0; i < frames_count; ++i)
@@ -47,7 +43,7 @@ namespace mn
 				//function maybe inlined
 				if(mangled_name_size == 0)
 				{
-					str = strf(str, "[{}]: {}\n", frames_count - i - 1, symbols[i]);
+					mn::print_to(out, "[{}]: {}\n", frames_count - i - 1, symbols[i]);
 					continue;
 				}
 
@@ -60,14 +56,14 @@ namespace mn
 				char* demangled_name = abi::__cxa_demangle(name_buffer, NULL, 0, &status);
 
 				if(status == 0)
-					str = strf(str, "[{}]: {}\n", frames_count - i - 1, demangled_name);
+					mn::print_to(out, "[{}]: {}\n", frames_count - i - 1, demangled_name);
 				else
-					str = strf(str, "[{}]: {}\n", frames_count - i - 1, name_buffer);
-				
+					mn::print_to(out, "[{}]: {}\n", frames_count - i - 1, name_buffer);
+
 				::free(demangled_name);
 			}
 			::free(symbols);
 		}
-		return str;
+		#endif
 	}
 }

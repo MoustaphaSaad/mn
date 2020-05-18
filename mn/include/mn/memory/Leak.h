@@ -13,10 +13,11 @@ namespace mn::memory
 {
 	struct Leak: Interface
 	{
+		constexpr static inline int CALLSTACK_MAX_FRAMES = 20;
 		struct Node
 		{
 			size_t size;
-			Str callstack;
+			void* callstack[CALLSTACK_MAX_FRAMES];
 			Node* next;
 			Node* prev;
 		};
