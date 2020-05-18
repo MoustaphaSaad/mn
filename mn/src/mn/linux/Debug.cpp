@@ -19,6 +19,9 @@ namespace mn
 	callstack_print_to(void** frames, size_t frames_count, mn::Stream out)
 	{
 		#if DEBUG
+		constexpr size_t MAX_NAME_LEN = 255;
+		//+1 for null terminated string
+		char name_buffer[MAX_NAME_LEN+1];
 		char** symbols = backtrace_symbols(frames, frames_count);
 		if(symbols)
 		{
