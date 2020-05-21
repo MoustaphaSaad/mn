@@ -62,7 +62,8 @@ namespace mn
 
 			if (SymFromAddr(process_handle, (DWORD64)(frames[i]), NULL, symbol))
 			{
-				IMAGEHLP_LINE64 line;
+				IMAGEHLP_LINE64 line{};
+				line.SizeOfStruct = sizeof(line);
 				DWORD dis = 0;
 				BOOL line_found = SymGetLineFromAddr64(process_handle, symbol->Address, &dis, &line);
 
