@@ -5,6 +5,7 @@
 #include "mn/memory/Interface.h"
 #include "mn/memory/Stack.h"
 #include "mn/memory/Arena.h"
+#include "mn/memory/Buddy.h"
 #include "mn/Context.h"
 
 #include <stdint.h>
@@ -212,6 +213,12 @@ namespace mn
 	allocator_arena_new(size_t block_size = 4096, Allocator meta = memory::clib())
 	{
 		return alloc_construct<memory::Arena>(block_size, meta);
+	}
+
+	inline static memory::Buddy*
+	allocator_buddy_new(size_t heap_size = 1ULL * 1024ULL * 1024ULL, Allocator meta = memory::virtual_mem())
+	{
+		return alloc_construct<memory::Buddy>(heap_size, meta);
 	}
 
 	inline static void

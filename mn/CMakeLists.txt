@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.16)
 # list the header files
 set(HEADER_FILES
 	include/mn/memory/Arena.h
+	include/mn/memory/Buddy.h
 	include/mn/memory/CLib.h
 	include/mn/memory/Interface.h
 	include/mn/memory/Leak.h
@@ -49,6 +50,7 @@ set(HEADER_FILES
 # list the source files
 set(SOURCE_FILES
 	src/mn/memory/Arena.cpp
+	src/mn/memory/Buddy.cpp
 	src/mn/memory/CLib.cpp
 	src/mn/memory/Leak.cpp
 	src/mn/memory/Stack.cpp
@@ -121,14 +123,14 @@ endif(MSVC)
 add_library(mn)
 
 target_sources(mn
-    PRIVATE ${HEADER_FILES}
-            ${SOURCE_FILES}
-            ${TOOL_FILES})
+	PRIVATE ${HEADER_FILES}
+			${SOURCE_FILES}
+			${TOOL_FILES})
 
-if (MN_UNITY_BUILD)        
-set_target_properties(mn
-    PROPERTIES UNITY_BUILD_BATCH_SIZE 0
-               UNITY_BUILD true)
+if (MN_UNITY_BUILD)
+	set_target_properties(mn
+		PROPERTIES UNITY_BUILD_BATCH_SIZE 0
+				   UNITY_BUILD true)
 endif()
 
 add_library(MoustaphaSaad::mn ALIAS mn)
@@ -145,24 +147,24 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${TOOL_FILES})
 
 
 target_compile_definitions(mn
-    PRIVATE
-        $<$<PLATFORM_ID:Windows>:UNICODE;_UNICODE>
-    PUBLIC
-        $<$<PLATFORM_ID:Windows>:OS_WINDOWS=1>
-        $<$<PLATFORM_ID:Linux>:OS_LINUX=1>
-        $<$<PLATFORM_ID:Apple>:OS_MACOS=1>)
+	PRIVATE
+		$<$<PLATFORM_ID:Windows>:UNICODE;_UNICODE>
+	PUBLIC
+		$<$<PLATFORM_ID:Windows>:OS_WINDOWS=1>
+		$<$<PLATFORM_ID:Linux>:OS_LINUX=1>
+		$<$<PLATFORM_ID:Apple>:OS_MACOS=1>)
 
 target_compile_options(mn
-    PRIVATE
-        $<$<CXX_COMPILER_ID:MSVC>:/W4>
-        $<$<CXX_COMPILER_ID:GNU>:-Wall>
-        $<$<CXX_COMPILER_ID:Clang>:-Wall>)
+	PRIVATE
+		$<$<CXX_COMPILER_ID:MSVC>:/W4>
+		$<$<CXX_COMPILER_ID:GNU>:-Wall>
+		$<$<CXX_COMPILER_ID:Clang>:-Wall>)
 
 target_link_libraries(mn
-    PRIVATE
-        "$<$<PLATFORM_ID:Windows>:dbghelp;ws2_32>"
-        "$<$<PLATFORM_ID:Linux>:pthread;rt;dl>"
-        "$<$<PLATFORM_ID:Apple>:pthread;dl>")
+	PRIVATE
+		"$<$<PLATFORM_ID:Windows>:dbghelp;ws2_32>"
+		"$<$<PLATFORM_ID:Linux>:pthread;rt;dl>"
+		"$<$<PLATFORM_ID:Apple>:pthread;dl>")
 
 if(MN_LEAK)
 	message(STATUS "Leak Detector enabled")

@@ -881,3 +881,17 @@ TEST_CASE("stress")
 	chan_free(c);
 	fabric_free(f);
 }
+
+TEST_CASE("buddy")
+{
+	auto buddy = mn::allocator_buddy_new();
+	auto nums = mn::buf_with_allocator<int>(buddy);
+	for(int i = 0; i < 1000; ++i)
+		mn::buf_push(nums, i);
+	auto test = mn::alloc_from(buddy, 1024*1024 - 16, alignof(int));
+	CHECK(test.ptr == nullptr);
+	for(int i = 0; i < 1000; ++i)
+		CHECK(nums[i] == i);
+	mn::buf_free(nums);
+	mn::allocator_free(buddy);
+}
