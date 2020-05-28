@@ -34,7 +34,6 @@ namespace mn
 				//exe "0   example 0x000000010dd39efe main + 46"
 
                 Str symbol = str_from_c(symbols[i], allocator);
-				mn_defer(symbol);
 
                 auto tokens = mn::str_split(symbol, " ", true);
 
