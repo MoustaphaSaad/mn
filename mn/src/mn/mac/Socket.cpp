@@ -6,6 +6,7 @@
 #include <sys/unistd.h>
 #include <fcntl.h>
 #include <netdb.h>
+#include <poll.h>
 
 namespace mn
 {
