@@ -9,13 +9,13 @@ namespace mn
 	Process
 	process_id()
 	{
-		return Process{ getpid() };
+		return Process{ static_cast<uint64_t>(getpid()) };
 	}
 
 	Process
 	process_parent_id()
 	{
-		return Process{ getppid() };
+		return Process{ static_cast<uint64_t>(getppid()) };
 	}
 
 	bool
