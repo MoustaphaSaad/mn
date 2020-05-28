@@ -1,68 +1,72 @@
 #include "mn/Debug.h"
 #include "mn/IO.h"
-#include "mn/Str.h"
-#include "mn/Defer.h"
 
 #include <cxxabi.h>
 #include <execinfo.h>
 
 #include <stdlib.h>
 
-#include <string.h>
-
 namespace mn
 {
-	Str
-	callstack_dump(Allocator allocator)
-	{
-		Str str = str_with_allocator(allocator);
-		constexpr size_t MAX_NAME_LEN = 1024;
-		constexpr size_t STACK_MAX = 4096;
-		void* callstack[STACK_MAX];
+    size_t
+    callstack_capture(void** frames, size_t frames_count)
+    {
+        ::memset(frames, 0, frames_count * sizeof(frames));
+        return backtrace(frames, frames_count);
+    }
 
-		//capture the call stack
-		size_t frames_count = backtrace(callstack, STACK_MAX);
-		//resolve the symbols
-		char** symbols = backtrace_symbols(callstack, frames_count);
-
+    void
+    callstack_print_to(void** frames, size_t frames_count, mn::Stream out)
+    {
+#ifndef NDEBUG
+        constexpr size_t MAX_NAME_LEN = 255;
+        //+1 for null terminated string
+		char name_buffer[MAX_NAME_LEN+1];
+		char** symbols = backtrace_symbols(frames, frames_count);
 		if(symbols)
 		{
 			for(size_t i = 0; i < frames_count; ++i)
 			{
 				//isolate the function name
-				//function name is the 4th element when spliting the symbol by space delimiter
-				//exe "0   example 0x000000010dd39efe main + 46"
-
-                Str symbol = str_from_c(symbols[i], allocator);
-
-                auto tokens = mn::str_split(symbol, " ", true);
-
-                Str mangled_name{};
-                if(tokens.count > 3)
-                {
-                    mangled_name = tokens[3];
-                }
-
-                size_t mangled_name_size = mangled_name.count;
-				//function maybe inlined
-                if(mangled_name_size == 0)
+				char *name_begin = nullptr, *name_end = nullptr, *name_it = symbols[i];
+				while(*name_it != 0)
 				{
-					str = strf(str, "[{}]: unknown symbol\n", frames_count - i - 1);
+					if(*name_it == '(')
+						name_begin = name_it+1;
+					else if(*name_it == ')' || *name_it == '+')
+					{
+						name_end = name_it;
+						break;
+					}
+					++name_it;
+				}
+
+				
+				size_t mangled_name_size = name_end - name_begin;
+				//function maybe inlined
+				if(mangled_name_size == 0)
+				{
+					mn::print_to(out, "[{}]: {}\n", frames_count - i - 1, symbols[i]);
 					continue;
 				}
 
+				//copy the function name into the name buffer
+				size_t copy_size = mangled_name_size > MAX_NAME_LEN ? MAX_NAME_LEN : mangled_name_size;
+				memcpy(name_buffer, name_begin, copy_size);
+				name_buffer[copy_size] = 0;
+
 				int status = 0;
-				char* demangled_name = abi::__cxa_demangle(mangled_name.ptr, NULL, 0, &status);
+				char* demangled_name = abi::__cxa_demangle(name_buffer, NULL, 0, &status);
 
 				if(status == 0)
-					str = strf(str, "[{}]: {}\n", frames_count - i - 1, demangled_name);
+					mn::print_to(out, "[{}]: {}\n", frames_count - i - 1, demangled_name);
 				else
-					str = strf(str, "[{}]: {}\n", frames_count - i - 1, mangled_name.ptr);
-					
+					mn::print_to(out, "[{}]: {}\n", frames_count - i - 1, name_buffer);
+
 				::free(demangled_name);
 			}
 			::free(symbols);
 		}
-		return str;
-	}
+#endif
+    }
 }
