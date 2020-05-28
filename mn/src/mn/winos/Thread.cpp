@@ -156,6 +156,40 @@ namespace mn
 									self, //thread start function arg
 									0, //default creation flags
 									&self->id); //thread id
+
+#ifndef NDEBUG
+		// Setting a thread name is useful when debugging
+		{
+			/*
+			 * SetThreadDescription may not be available on this version of Windows,
+			 * and testing the operating system version is not the best way to do this.
+			 * First, it requires the application/library to be manifested for Windows 10,
+			 * and even then, the functionality may be available through a redistributable DLL.
+			 *
+			 * Instead, check that the function exists in the appropriate library (kernel32.dll).
+			 *
+			 * Reference: (https://docs.microsoft.com/en-us/windows/win32/sysinfo/operating-system-version)
+			 */
+			HMODULE kernel = LoadLibrary(L"kernel32.dll");
+			if (kernel != nullptr)
+			{
+				mn_defer(FreeLibrary(kernel));
+
+				using prototype = HRESULT(*)(HANDLE, PCWSTR);
+				auto set_thread_description = (prototype)GetProcAddress(kernel, "SetThreadDescription");
+				if (set_thread_description != nullptr)
+				{
+					int buffer_size = MultiByteToWideChar(CP_UTF8, 0, name, -1, NULL, 0);
+					Block buffer = alloc(buffer_size * sizeof(WCHAR), alignof(WCHAR));
+					mn_defer(free(buffer));
+					MultiByteToWideChar(CP_UTF8, 0, name, -1, (LPWSTR)buffer.ptr, buffer_size);
+
+					set_thread_description(self->handle, (LPWSTR)buffer.ptr);
+				}
+			}
+		}
+#endif
+
 		return self;
 	}
 
