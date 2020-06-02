@@ -44,6 +44,7 @@ set(HEADER_FILES
 	include/mn/Socket.h
 	include/mn/Library.h
 	include/mn/Process.h
+	include/mn/Handle_Table.h
 	include/utf8proc/utf8proc.h
 )
 
