@@ -51,6 +51,7 @@ namespace mn
 		// used to index the index free list in the map
 		uint32_t _free_list_head;
 	};
+	constexpr inline uint64_t HANDLE_TABLE_INVLAID_INDEX = UINT64_MAX;
 
 	template<typename T>
 	inline static Handle_Table<T>
