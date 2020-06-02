@@ -20,6 +20,7 @@
 #include <mn/Result.h>
 #include <mn/Fabric.h>
 #include <mn/Block_Stream.h>
+#include <mn/Handle_Table.h>
 
 #include <chrono>
 #include <iostream>
@@ -894,4 +895,60 @@ TEST_CASE("buddy")
 		CHECK(nums[i] == i);
 	mn::buf_free(nums);
 	mn::allocator_free(buddy);
+}
+
+TEST_CASE("handle table generation check")
+{
+	auto table = mn::handle_table_new<int>();
+	auto handles = mn::buf_new<uint64_t>();
+	for(int i = 0; i < 10; ++i)
+		mn::buf_push(handles, mn::handle_table_insert(table, i));
+
+	for(int i = 0; i < 10; ++i)
+	{
+		CHECK(mn::handle_table_get(table, handles[i]) == i);
+		mn::handle_table_remove(table, handles[i]);
+	}
+
+	for(int i = 0; i < 10; ++i)
+	{
+		auto new_handle = mn::handle_table_insert(table, i);
+		CHECK(new_handle != handles[i]);
+	}
+
+	mn::handle_table_free(table);
+	mn::buf_free(handles);
+}
+
+TEST_CASE("handle table generation check")
+{
+	auto table = mn::handle_table_new<int>();
+	auto handles = mn::buf_new<uint64_t>();
+	for(int i = 0; i < 10; ++i)
+		mn::buf_push(handles, mn::handle_table_insert(table, i));
+
+	for(int i = 0; i < 10; ++i)
+		if (i % 2 == 0)
+			mn::handle_table_remove(table, handles[i]);
+
+	for(size_t i = 0; i < handles.count; ++i)
+	{
+		if (handles[i] % 2 == 0)
+		{
+			mn::buf_remove(handles, i);
+			--i;
+		}
+	}
+
+	for(int i = 0; i < 10; ++i)
+	{
+		if (i % 2 == 0)
+		{
+			auto new_handle = mn::handle_table_insert(table, i);
+			mn::buf_push(handles, new_handle);
+		}
+	}
+
+	mn::handle_table_free(table);
+	mn::buf_free(handles);
 }

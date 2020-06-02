@@ -80,17 +80,17 @@ namespace mn
 
 	template<typename T>
 	inline static uint64_t
-	handle_table_insert(Handle_Table<T>& self, T&& v)
+	handle_table_insert(Handle_Table<T>& self, T v)
 	{
 		Handle_Table_Index h{UINT32_MAX, UINT32_MAX};
 		// no already free indices so create new one
 		if (self._free_list_head == UINT32_MAX)
 		{
-			h.index = self._map.count;
+			h.index = uint32_t(self._map.count);
 			h.generation = 0;
 
 			Handle_Table_Entry entry;
-			entry.items_index = self.items.count;
+			entry.items_index = uint32_t(self.items.count);
 			entry.generation = 0;
 			mn::buf_push(self._map, entry);
 		}
@@ -107,10 +107,10 @@ namespace mn
 			self._free_list_head = entry.items_index;
 
 			//update the items_index
-			entry.items_index = self.items.count;
+			entry.items_index = uint32_t(self.items.count);
 		}
-		mn::buf_push(self.items, Handle_Table_Item{v, h.index});
-		return h;
+		mn::buf_push(self.items, Handle_Table_Item<T>{v, h.index});
+		return handle_table_index_to_uint64(h);
 	}
 
 	template<typename T>
@@ -119,7 +119,7 @@ namespace mn
 	{
 		auto h = handle_table_index_from_uint64(v);
 		auto& entry = self._map[h.index];
-		assert(entry.generation == h.generation)
+		assert(entry.generation == h.generation);
 		if (entry.generation != h.generation)
 			return;
 
@@ -145,9 +145,9 @@ namespace mn
 
 	template<typename T>
 	inline static T
-	handle_table_get(Handle_Table<T>& self, uint64_t index)
+	handle_table_get(Handle_Table<T>& self, uint64_t v)
 	{
 		auto h = handle_table_index_from_uint64(v);
-		return self.items[self._map[h.index]].item;
+		return self.items[self._map[h.index].items_index].item;
 	}
 }
