@@ -506,7 +506,7 @@ namespace mn
 		if (SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, NULL, &config_str) != S_OK)
 		{
 			assert(false && "No local config directory.");
-			return mn::str_with_allocator(allocator);
+			return str_with_allocator(allocator);
 		}
 
 		auto len = wcslen(config_str);
