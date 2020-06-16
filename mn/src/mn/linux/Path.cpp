@@ -398,7 +398,7 @@ namespace mn
 	folder_config(Allocator allocator)
 	{
 		char * os_str = secure_getenv("XDG_CONFIG_HOME");
-		if (!os_str)
+		if (!os_str || ::strlen(os_str) == 0)
 			os_str = "~/.config";
 
 		return str_from_c(os_str, allocator);
