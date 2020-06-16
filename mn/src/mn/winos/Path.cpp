@@ -501,12 +501,12 @@ namespace mn
 	Str
 	folder_config(Allocator allocator)
 	{
-		PWSTR config_str;
+		PWSTR config_str = nullptr;
 
 		if (SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, NULL, &config_str) != S_OK)
 		{
-			assert(0 && "No local config directory.");
-			return Str{};
+			assert(false && "No local config directory.");
+			return mn::str_with_allocator(allocator);
 		}
 
 		auto len = wcslen(config_str);

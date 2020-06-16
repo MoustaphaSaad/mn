@@ -398,9 +398,13 @@ namespace mn
 	folder_config(Allocator allocator)
 	{
 		char * os_str = secure_getenv("XDG_CONFIG_HOME");
-		if (!os_str || ::strlen(os_str) == 0)
-			os_str = "~/.config";
+		if (os_str && ::strlen(os_str) > 0)
+			return mn::str_from_c(os_str, allocator);
 
-		return str_from_c(os_str, allocator);
+		os_str = secure_getenv("HOME");
+		if (os_str && ::strlen(os_str) > 0)
+			return mn::path_join(mn::str_with_allocator(allocator), os_str, ".config");
+		
+		return mn::str_from_c("~/.config", allocator);
 	}
 }
