@@ -396,6 +396,6 @@ namespace mn
 	Str
 	folder_config(Allocator allocator)
 	{
-		return str_from_c("~/Library/Preferences/", allocator);
+		return str_from_c("~/Library/Preferences", allocator);
 	}
 }

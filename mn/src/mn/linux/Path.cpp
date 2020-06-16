@@ -397,6 +397,10 @@ namespace mn
 	Str
 	folder_config(Allocator allocator)
 	{
-		return str_from_c(secure_getenv("XDG_CONFIG_HOME"), allocator);
+		char * os_str = secure_getenv("XDG_CONFIG_HOME");
+		if (!os_str)
+			os_str = "~/.config";
+
+		return str_from_c(os_str, allocator);
 	}
 }

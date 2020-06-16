@@ -503,7 +503,13 @@ namespace mn
 	{
 		PWSTR config_str;
 
-		SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, NULL, &config_str);
+		switch (SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, NULL, &config_str))
+		{
+			case E_FAIL:
+				assert(0 && "E_FAIL, make sure the there exists a path corrosponding to the rfid.");
+			case E_INVALIDARG:
+				assert(0 && "E_INVALIDARG, make sure the rfid exists in the KNOWNFOLDERID.");
+		}
 
 		auto len = wcslen(config_str);
 
