@@ -508,4 +508,12 @@ namespace mn
 
 	MN_EXPORT Str
 	folder_tmp(Allocator allocator = allocator_top());
+
+	/**
+	 * @brief      Returns the system config folder
+	 *
+	 * @param[in]  allocator   The allocator to be used in the returned str
+	 */
+	MN_EXPORT Str
+	folder_config(Allocator allocator = allocator_top());
 }

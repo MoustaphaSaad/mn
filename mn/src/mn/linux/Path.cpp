@@ -393,4 +393,10 @@ namespace mn
 	{
 		return str_from_c(secure_getenv("TMPDIR"), allocator);
 	}
+
+	Str
+	folder_config(Allocator allocator)
+	{
+		return str_from_c(secure_getenv("XDG_CONFIG_HOME"), allocator);
+	}
 }
