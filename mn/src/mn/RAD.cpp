@@ -7,6 +7,7 @@
 #include "mn/Path.h"
 #include "mn/IO.h"
 #include "mn/Log.h"
+#include "mn/UUID.h"
 
 #include <chrono>
 
@@ -19,7 +20,6 @@ struct RAD_Module
 	mn::Str original_file;
 	mn::Str loaded_file;
 	mn::Str name;
-	uint64_t load_time;
 	mn::Library library;
 	int64_t last_write;
 	void* api;
@@ -41,6 +41,7 @@ struct RAD
 {
 	mn::Mutex mtx;
 	mn::Map<mn::Str, RAD_Module> modules;
+	mn::UUID uuid;
 };
 
 // API
@@ -53,6 +54,7 @@ rad_new()
 	auto self = mn::alloc<RAD>();
 	self->mtx = mn::mutex_new("Root Mutex");
 	self->modules = mn::map_new<mn::Str, RAD_Module>();
+	self->uuid = mn::uuid_generate();
 	return self;
 }
 
@@ -61,6 +63,12 @@ rad_free(RAD* self)
 {
 	mn::allocator_push(mn::memory::clib());
 	mn_defer(mn::allocator_pop());
+
+	for (const auto &module : self->modules)
+	{
+		if (mn::path_is_file(module.value.loaded_file))
+			mn::file_remove(module.value.loaded_file);
+	}
 
 	destruct(self->modules);
 	mn::mutex_free(self->mtx);
@@ -95,11 +103,9 @@ rad_register(RAD* self, const char* name, const char* filepath)
 	if (mn::path_is_file(os_filepath) == false)
 		return false;
 
-	auto duration_nanos = std::chrono::high_resolution_clock::now().time_since_epoch();
-	uint64_t nanos = std::chrono::duration_cast<std::chrono::duration<uint64_t, std::nano>>(duration_nanos).count();
-
 	// file name
-	auto loaded_filepath = mn::strf("{}-{}.loaded-0", os_filepath, nanos);
+	auto loaded_filepath = mn::strf("{}-{}.loaded-0", os_filepath, self->uuid);
+
 	if (mn::path_is_file(loaded_filepath))
 	{
 		if (mn::file_remove(loaded_filepath) == false)
@@ -146,7 +152,6 @@ rad_register(RAD* self, const char* name, const char* filepath)
 	mod.original_file = os_filepath;
 	mod.loaded_file = loaded_filepath;
 	mod.name = mn::str_from_c(name);
-	mod.load_time = nanos;
 	mod.library = library;
 	mod.last_write = mn::file_last_write_time(os_filepath);
 	mod.api = load_func(nullptr, false);
@@ -201,7 +206,7 @@ rad_update(RAD* self)
 			mn::log_info("module '{}' changed", mod.original_file);
 			mod.load_counter++;
 
-			auto loaded_filepath = mn::strf("{}-{}.loaded-{}", mod.original_file, mod.load_time, mod.load_counter);
+			auto loaded_filepath = mn::strf("{}-{}.loaded-{}", mod.original_file, self->uuid, mod.load_counter);
 			if (mn::path_is_file(loaded_filepath))
 			{
 				if (mn::file_remove(loaded_filepath) == false)

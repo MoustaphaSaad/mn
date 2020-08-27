@@ -47,6 +47,7 @@ set(HEADER_FILES
 	include/mn/Handle_Table.h
 	include/mn/Log.h
 	include/mn/RAD.h
+	include/mn/UUID.h
 	include/utf8proc/utf8proc.h
 )
 
@@ -87,6 +88,7 @@ if(WIN32)
 		src/mn/winos/Socket.cpp
 		src/mn/winos/Library.cpp
 		src/mn/winos/Process.cpp
+		src/mn/winos/UUID.cpp
 	)
 elseif(UNIX AND NOT APPLE)
 	set(SOURCE_FILES ${SOURCE_FILES}
@@ -99,6 +101,7 @@ elseif(UNIX AND NOT APPLE)
 		src/mn/linux/Socket.cpp
 		src/mn/linux/Library.cpp
 		src/mn/linux/Process.cpp
+		src/mn/linux/UUID.cpp
 	)
 elseif(APPLE)
 	set(SOURCE_FILES ${SOURCE_FILES}
@@ -111,6 +114,7 @@ elseif(APPLE)
 		src/mn/mac/Socket.cpp
 		src/mn/mac/Library.cpp
 		src/mn/mac/Process.cpp
+		src/mn/mac/UUID.cpp
 	)
 endif()
 
