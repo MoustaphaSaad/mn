@@ -19,7 +19,7 @@ struct RAD_Module
 	mn::Str original_file;
 	mn::Str loaded_file;
 	mn::Str name;
-	mn::Str timestamp;
+	uint64_t load_time;
 	mn::Library library;
 	int64_t last_write;
 	void* api;
@@ -35,7 +35,6 @@ destruct(RAD_Module& self)
 	mn::str_free(self.original_file);
 	mn::str_free(self.loaded_file);
 	mn::str_free(self.name);
-	mn::str_free(self.timestamp);
 }
 
 struct RAD
@@ -147,7 +146,7 @@ rad_register(RAD* self, const char* name, const char* filepath)
 	mod.original_file = os_filepath;
 	mod.loaded_file = loaded_filepath;
 	mod.name = mn::str_from_c(name);
-	mod.timestamp = mn::strf("{}", nanos);
+	mod.load_time = nanos;
 	mod.library = library;
 	mod.last_write = mn::file_last_write_time(os_filepath);
 	mod.api = load_func(nullptr, false);
@@ -202,7 +201,7 @@ rad_update(RAD* self)
 			mn::log_info("module '{}' changed", mod.original_file);
 			mod.load_counter++;
 
-			auto loaded_filepath = mn::strf("{}-{}.loaded-{}", mod.original_file, mod.timestamp, mod.load_counter);
+			auto loaded_filepath = mn::strf("{}-{}.loaded-{}", mod.original_file, mod.load_time, mod.load_counter);
 			if (mn::path_is_file(loaded_filepath))
 			{
 				if (mn::file_remove(loaded_filepath) == false)
