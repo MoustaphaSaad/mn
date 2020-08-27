@@ -153,6 +153,13 @@ target_link_libraries(mn
 		fmt::fmt
 )
 
+if (UNIX)
+target_link_libraries(mn
+        PRIVATE
+                uuid
+)
+endif()
+
 # make it reflect the same structure as the one on disk
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${HEADER_FILES})
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCE_FILES})
