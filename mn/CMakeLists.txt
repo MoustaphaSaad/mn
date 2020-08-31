@@ -176,13 +176,16 @@ target_compile_options(mn
 if (UNIX AND NOT APPLE)
 	find_package(PkgConfig REQUIRED)
 	pkg_search_module(UUID REQUIRED uuid)
+elseif(APPLE)
+	find_library(CFLIB CoreFoundation)
+	target_link_libraries(mn PRIVATE ${CFLIB})
 endif()
 
 target_link_libraries(mn
 	PRIVATE
 		"$<$<PLATFORM_ID:Windows>:dbghelp;ws2_32>"
 		"$<$<PLATFORM_ID:Linux>:pthread;rt;dl;uuid>"
-		"$<$<PLATFORM_ID:Apple>:pthread;dl;CoreFoundation>")
+		"$<$<PLATFORM_ID:Apple>:pthread;dl>")
 
 if (MN_LEAK)
 	message(STATUS "feature: leak detector enabled")
