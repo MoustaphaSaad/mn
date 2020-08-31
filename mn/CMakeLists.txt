@@ -177,8 +177,7 @@ if (UNIX AND NOT APPLE)
 	find_package(PkgConfig REQUIRED)
 	pkg_search_module(UUID REQUIRED uuid)
 elseif(APPLE)
-	find_library(CFLIB CoreFoundation)
-	target_link_libraries(mn PRIVATE ${CFLIB})
+	target_link_libraries(mn PRIVATE "-framework CoreFoundation")
 endif()
 
 target_link_libraries(mn
