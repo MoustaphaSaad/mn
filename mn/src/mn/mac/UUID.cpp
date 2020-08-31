@@ -10,7 +10,8 @@ namespace mn
 		UUID self{};
 		auto CFUUID = CFUUIDCreate(NULL);
 		auto bytes = CFUUIDGetUUIDBytes(CFUUID);
-		::memcpy(self.bytes, bytes, 16);
+		::memcpy(self.bytes, &bytes, 16);
+		CFRelease(CFUUID);
 		return self;
 	}
 } // namespace mn

@@ -153,13 +153,6 @@ target_link_libraries(mn
 		fmt::fmt
 )
 
-if (UNIX)
-target_link_libraries(mn
-        PRIVATE
-                uuid
-)
-endif()
-
 # make it reflect the same structure as the one on disk
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${HEADER_FILES})
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCE_FILES})
@@ -180,10 +173,14 @@ target_compile_options(mn
 		$<$<CXX_COMPILER_ID:GNU>:-Wall>
 		$<$<CXX_COMPILER_ID:Clang>:-Wall>)
 
+if (UNIX AND NOT APPLE)
+	find_package(uuid REQUIRED)
+endif()
+
 target_link_libraries(mn
 	PRIVATE
 		"$<$<PLATFORM_ID:Windows>:dbghelp;ws2_32>"
-		"$<$<PLATFORM_ID:Linux>:pthread;rt;dl>"
+		"$<$<PLATFORM_ID:Linux>:pthread;rt;dl;uuid>"
 		"$<$<PLATFORM_ID:Apple>:pthread;dl>")
 
 if (MN_LEAK)
