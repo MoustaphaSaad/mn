@@ -181,7 +181,7 @@ target_link_libraries(mn
 	PRIVATE
 		"$<$<PLATFORM_ID:Windows>:dbghelp;ws2_32>"
 		"$<$<PLATFORM_ID:Linux>:pthread;rt;dl;uuid>"
-		"$<$<PLATFORM_ID:Apple>:pthread;dl>")
+		"$<$<PLATFORM_ID:Apple>:pthread;dl;uuid>")
 
 if (MN_LEAK)
 	message(STATUS "feature: leak detector enabled")
