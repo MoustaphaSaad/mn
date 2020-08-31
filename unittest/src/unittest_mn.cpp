@@ -22,6 +22,7 @@
 #include <mn/Block_Stream.h>
 #include <mn/Handle_Table.h>
 #include <mn/ECS.h>
+#include <mn/UUID.h>
 
 #include <chrono>
 #include <iostream>
@@ -1045,4 +1046,20 @@ TEST_CASE("val bag")
 	CHECK(rp.points.count == 10);
 	for(size_t i = 0; i < 10; ++i)
 		CHECK(rp.points[i] == float(i));
+}
+
+TEST_CASE("uuid uniqueness")
+{
+	auto ids = mn::map_new<mn::UUID, size_t>();
+	mn_defer(mn::map_free(ids));
+
+	for (size_t i = 0; i < 1000000; ++i)
+	{
+		auto id = mn::uuid_generate();
+		if(auto it = mn::map_lookup(ids, id))
+			++it->value;
+		else
+			mn::map_insert(ids, id, size_t(1));
+	}
+	CHECK(ids.count == 1000000);
 }
