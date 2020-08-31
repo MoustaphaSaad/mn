@@ -174,7 +174,8 @@ target_compile_options(mn
 		$<$<CXX_COMPILER_ID:Clang>:-Wall>)
 
 if (UNIX AND NOT APPLE)
-	find_package(uuid REQUIRED)
+	find_package(PkgConfig REQUIRED)
+	pkg_search_module(UUID REQUIRED uuid)
 endif()
 
 target_link_libraries(mn
