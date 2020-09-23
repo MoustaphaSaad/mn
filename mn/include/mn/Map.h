@@ -252,6 +252,17 @@ namespace mn
 		}
 	};
 
+	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
+	struct Key_Value_Hash
+	{
+		inline size_t
+		operator()(const Key_Value<TKey, TValue>& val) const
+		{
+			THash hasher;
+			return hasher(val.key);
+		}
+	};
+
 	/**
 	 * @brief      Mixes two hash values together
 	 *
@@ -573,7 +584,6 @@ namespace mn
 		auto new_cap = self.count + added_count;
 		new_cap *= 4;
 		new_cap = new_cap / 3 + 1;
-		new_cap = new_cap < 8 ? 8 : new_cap;
 		if (new_cap > self._used_count_threshold)
 		{
 			_set_reserve_exact(self, new_cap);
@@ -729,150 +739,150 @@ namespace mn
 		return buf_end(self.values);
 	}
 
-	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
-	using Map = Set<Key_Value<TKey, TValue>, THash>;
+	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
+	using Map = Set<Key_Value<TKey, TValue>, Key_Value_Hash<TKey, TValue, THash>>;
 
-	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
 	inline static Map<TKey, TValue, THash>
 	map_new()
 	{
-		return set_new<Key_Value<TKey, TValue>, THash>();
+		return set_new<Key_Value<TKey, TValue>, Key_Value_Hash<TKey, TValue, THash>>();
 	}
 
-	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
 	inline static Map<TKey, TValue, THash>
 	map_with_allocator(Allocator allocator)
 	{
-		return set_with_allocator<Key_Value<TKey, TValue>, THash>(allocator);
+		return set_with_allocator<Key_Value<TKey, TValue>, Key_Value_Hash<TKey, TValue, THash>>(allocator);
 	}
 
-	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
 	inline static void
 	map_free(Map<TKey, TValue, THash>& self)
 	{
 		set_free(self);
 	}
 
-	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
 	inline static void
 	map_clear(Map<TKey, TValue, THash>& self)
 	{
 		set_clear(self);
 	}
 
-	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
 	inline static size_t
 	map_capacity(Map<TKey, TValue, THash>& self)
 	{
 		return set_capacity(self);
 	}
 
-	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
 	inline static Key_Value<const TKey, TValue>*
 	map_insert(Map<TKey, TValue, THash>& self, const TKey& key)
 	{
 		return (Key_Value<const TKey, TValue>*)set_insert(self, Key_Value<TKey, TValue>{key});
 	}
 
-	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
 	inline static Key_Value<const TKey, TValue>*
 	map_insert(Map<TKey, TValue, THash>& self, const TKey& key, const TValue& value)
 	{
 		return (Key_Value<const TKey, TValue>*)set_insert(self, Key_Value<TKey, TValue>{key, value});
 	}
 
-	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
 	inline static const Key_Value<const TKey, TValue>*
 	map_lookup(const Map<TKey, TValue, THash>& self, const TKey& key)
 	{
 		return (const Key_Value<const TKey, TValue>*)set_lookup(self, Key_Value<TKey, TValue>{key});
 	}
 
-	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
 	inline static Key_Value<const TKey, TValue>*
 	map_lookup(Map<TKey, TValue, THash>& self, const TKey& key)
 	{
 		return (Key_Value<const TKey, TValue>*)set_lookup(self, Key_Value<TKey, TValue>{key});
 	}
 
-	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
 	inline static bool
 	map_remove(Map<TKey, TValue, THash>& self, const TKey& key)
 	{
 		return set_remove(self, Key_Value<TKey, TValue>{key});
 	}
 
-	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
 	inline static void
 	map_reserve(Map<TKey, TValue, THash>& self, size_t added_count)
 	{
 		set_reserve(self, added_count);
 	}
 
-	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
 	inline static Map<TKey, TValue, THash>
 	map_clone(const Map<TKey, TValue, THash>& other, Allocator allocator = allocator_top())
 	{
 		return set_clone(other, allocator);
 	}
 
-	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
 	inline static Map<TKey, TValue, THash>
 	map_memcpy_clone(const Map<TKey, TValue, THash>& other, Allocator allocator = allocator_top())
 	{
 		return set_memcpy_clone(other, allocator);
 	}
 
-	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
 	inline static const Key_Value<const TKey, TValue>*
 	map_begin(const Map<TKey, TValue, THash>& self)
 	{
 		return (const Key_Value<const TKey, TValue>*)set_begin(self);
 	}
 
-	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
 	inline static Key_Value<const TKey, TValue>*
 	map_begin(Map<TKey, TValue, THash>& self)
 	{
 		return (Key_Value<const TKey, TValue>*)set_begin(self);
 	}
 
-	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
 	inline static const Key_Value<const TKey, TValue>*
 	map_end(const Map<TKey, TValue, THash>& self)
 	{
 		return (Key_Value<const TKey, TValue>*)set_end(self);
 	}
 
-	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
 	inline static Key_Value<const TKey, TValue>*
 	map_end(Map<TKey, TValue, THash>& self)
 	{
 		return (Key_Value<const TKey, TValue>*)set_end(self);
 	}
 
-	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
 	inline static const Key_Value<const TKey, TValue>*
 	begin(const Map<TKey, TValue, THash>& self)
 	{
 		return (const Key_Value<const TKey, TValue>*)set_begin(self);
 	}
 
-	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
 	inline static Key_Value<const TKey, TValue>*
 	begin(Map<TKey, TValue, THash>& self)
 	{
 		return (Key_Value<const TKey, TValue>*)set_begin(self);
 	}
 
-	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
 	inline static const Key_Value<const TKey, TValue>*
 	end(const Map<TKey, TValue, THash>& self)
 	{
 		return (Key_Value<const TKey, TValue>*)set_end(self);
 	}
 
-	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
 	inline static Key_Value<const TKey, TValue>*
 	end(Map<TKey, TValue, THash>& self)
 	{

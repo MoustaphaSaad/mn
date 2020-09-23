@@ -295,12 +295,7 @@ TEST_CASE("set general cases")
 {
 	auto num = mn::set_new<int>();
 
-	mn::set_reserve(num, 1);
-	for (int i = 0; i < 128; ++i)
-		mn::set_insert(num, i);
-
-	mn::set_reserve(num, 4000);
-	for (int i = 128; i < 256; ++i)
+	for (int i = 0; i < 10; ++i)
 		mn::set_insert(num, i);
 
 	for (int i = 0; i < 10; ++i)
