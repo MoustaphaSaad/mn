@@ -515,21 +515,6 @@ namespace mn
 	}
 
 	template<typename T, typename THash = Hash<T>>
-	inline static T*
-	set_reserve(Set<T, THash>& self, size_t added_count)
-	{
-		if (self._slots.count - self.count >= added_count)
-			return;
-
-		
-		size_t double_cap = (self._slots.count * 2);
-		size_t fit = self.count + added_count;
-		size_t new_cap = double_cap > fit ? double_cap : fit;
-
-		auto new
-	}
-
-	template<typename T, typename THash = Hash<T>>
 	inline static void
 	_set_reserve_exact(Set<T, THash>& self, size_t new_count)
 	{
@@ -583,7 +568,9 @@ namespace mn
 	set_reserve(Set<T, THash>& self, size_t added_count)
 	{
 		if (self.count + added_count > self._used_count_threshold)
+		{
 			_set_reserve_exact(self, self.count + added_count);
+		}
 	}
 
 	template<typename T, typename THash = Hash<T>>
@@ -826,7 +813,7 @@ namespace mn
 	inline static Map<TKey, TValue, THash>
 	map_memcpy_clone(const Map<TKey, TValue, THash>& other, Allocator allocator = allocator_top())
 	{
-		return set_memcpy_clone(self, allocator);
+		return set_memcpy_clone(other, allocator);
 	}
 
 	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
