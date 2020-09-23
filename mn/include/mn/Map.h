@@ -537,8 +537,11 @@ namespace mn
 		buf_resize_fill(new_slots, new_count, Hash_Slot{});
 
 		self._deleted_count = 0;
+		// if 12/16th of table is occupied, grow
 		self._used_count_threshold = new_count - (new_count >> 2);
+		// if deleted count is 3/16th of table, rebuild
 		self._deleted_count_threshold = (new_count >> 3) + (new_count >> 4);
+		// if table is only 4/16th full, shrink
 		self._used_count_shrink_threshold = new_count >> 2;
 
 		// do a rehash
