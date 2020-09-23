@@ -652,7 +652,7 @@ namespace mn
 		else
 		{
 			// fixup the index of the last element after swap
-			auto last_res = _set_find_slot_for_insert(self._slots, self.values, self.values[self.count - 1], nullptr);
+			auto last_res = _set_find_slot_for_lookup(self, self.values[self.count - 1]);
 			self._slots[last_res.index] = hash_slot_set_index(self._slots[last_res.index], index);
 			buf_remove(self.values, index);
 		}
