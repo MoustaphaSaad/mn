@@ -553,7 +553,7 @@ namespace mn
 	inline static void
 	_set_maintain_space_complexity(Set<T, THash>& self)
 	{
-		if (self.count == 0)
+		if (self._slots.count == 0)
 		{
 			_set_reserve_exact(self, 8);
 		}
@@ -567,9 +567,16 @@ namespace mn
 	inline static void
 	set_reserve(Set<T, THash>& self, size_t added_count)
 	{
-		if (self.count + added_count > self._used_count_threshold)
+		if (added_count == 0)
+			return;
+
+		auto new_cap = self.count + added_count;
+		new_cap *= 4;
+		new_cap = new_cap / 3 + 1;
+		new_cap = new_cap < 8 ? 8 : new_cap;
+		if (new_cap > self._used_count_threshold)
 		{
-			_set_reserve_exact(self, self.count + added_count);
+			_set_reserve_exact(self, new_cap);
 		}
 	}
 
