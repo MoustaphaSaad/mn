@@ -550,7 +550,7 @@ namespace mn
 				if (flags == HASH_FLAGS::HASH_USED)
 				{
 					auto index = hash_slot_index(slot);
-					auto res = _set_find_slot_for_insert(new_slots, self.values, self.values[index], &slot.hash);
+					auto res = _set_find_slot_for_insert<T, THash>(new_slots, self.values, self.values[index], &slot.hash);
 					new_slots[res.index] = slot;
 				}
 			}
@@ -596,7 +596,7 @@ namespace mn
 	{
 		_set_maintain_space_complexity(self);
 
-		auto res = _set_find_slot_for_insert(self._slots, self.values, key, nullptr);
+		auto res = _set_find_slot_for_insert<T, THash>(self._slots, self.values, key, nullptr);
 
 		auto& slot = self._slots[res.index];
 		auto flags = hash_slot_flags(slot);
