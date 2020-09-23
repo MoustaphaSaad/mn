@@ -227,6 +227,24 @@ namespace mn
 			self.ptr[i] = value;
 	}
 
+	template<typename T>
+	inline static void
+	_buf_reserve_exact(Buf<T>& self, size_t new_count)
+	{
+		if (self.allocator == nullptr)
+			self.allocator = allocator_top();
+
+		Block new_block = alloc_from(self.allocator,
+									 new_count * sizeof(T),
+									 alignof(T));
+		if(self.count)
+			::memcpy(new_block.ptr, self.ptr, self.count * sizeof(T));
+		if(self.cap)
+			free_from(self.allocator, Block{ self.ptr, self.cap * sizeof(T) });
+		self.ptr = (T*)new_block.ptr;
+		self.cap = new_count;
+	}
+
 	/**
 	 * @brief      Ensures the given buf has the capacity to hold the added size
 	 *
@@ -240,21 +258,10 @@ namespace mn
 		if(self.count + added_size <= self.cap)
 			return;
 
-		if (self.allocator == nullptr)
-			self.allocator = allocator_top();
-
 		size_t next_cap = size_t(self.cap * 1.5f);
 		size_t accurate_cap = self.count + added_size;
 		size_t request_cap = next_cap > accurate_cap ? next_cap : accurate_cap;
-		Block new_block = alloc_from(self.allocator,
-									 request_cap * sizeof(T),
-									 alignof(T));
-		if(self.count)
-			::memcpy(new_block.ptr, self.ptr, self.count * sizeof(T));
-		if(self.cap)
-			free_from(self.allocator, Block{ self.ptr, self.cap * sizeof(T) });
-		self.ptr = (T*)new_block.ptr;
-		self.cap = request_cap;
+		_buf_reserve_exact(self, request_cap);
 	}
 
 	/**

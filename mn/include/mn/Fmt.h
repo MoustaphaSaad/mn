@@ -42,6 +42,27 @@ namespace fmt
 		}
 	};
 
+	template<typename T, typename THash>
+	struct formatter<mn::Set<T, THash>> {
+		template <typename ParseContext>
+		constexpr auto parse(ParseContext &ctx) { return ctx.begin(); }
+
+		template <typename FormatContext>
+		auto format(const mn::Set<T, THash> &set, FormatContext &ctx) {
+			format_to(ctx.out(), "[{}]{{ ", set.count);
+			size_t i = 0;
+			for(const auto& value: set)
+			{
+				if(i != 0)
+					format_to(ctx.out(), ", ");
+				format_to(ctx.out(), "{}", value);
+				++i;
+			}
+			format_to(ctx.out(), " }}");
+			return ctx.out();
+		}
+	};
+
 	template<typename TKey, typename TValue, typename THash>
 	struct formatter<mn::Map<TKey, TValue, THash>> {
 		template <typename ParseContext>
@@ -51,11 +72,11 @@ namespace fmt
 		auto format(const mn::Map<TKey, TValue, THash> &map, FormatContext &ctx) {
 			format_to(ctx.out(), "[{}]{{ ", map.count);
 			size_t i = 0;
-			for(auto it = map_begin(map); it != map_end(map); it = map_next(map, it))
+			for(const auto& [key, value]: map)
 			{
 				if(i != 0)
 					format_to(ctx.out(), ", ");
-				format_to(ctx.out(), "{}: {}", it->key, it->value);
+				format_to(ctx.out(), "{}: {}", key, value);
 				++i;
 			}
 			format_to(ctx.out(), " }}");

@@ -29,6 +29,14 @@ namespace mn
 	};
 
 	template<typename TKey, typename TValue>
+	inline static void
+	destruct(Key_Value<TKey, TValue>& self)
+	{
+		destruct(self.key);
+		destruct(self.value);
+	}
+
+	template<typename TKey, typename TValue>
 	inline static Key_Value<TKey, TValue>
 	clone(const Key_Value<TKey, TValue>& self)
 	{
@@ -268,719 +276,609 @@ namespace mn
 
 
 	//Map section
+	enum HASH_FLAGS: uint8_t { HASH_EMPTY, HASH_USED, HASH_DELETED };
 
-	enum HASH_FLAGS { HASH_EMPTY, HASH_USED, HASH_DELETED };
-
-	/**
-	 * @brief      Hash Map Structure
-	 *
-	 * @tparam     TKey    Key Type
-	 * @tparam     TValue  Value Type
-	 * @tparam     THash   Hasher Type
-	 */
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
-	struct Map
+	struct Hash_Slot
 	{
-		Buf<HASH_FLAGS>					flags;
-		Buf<Key_Value<TKey, TValue>> 	values;
-		THash							hasher;
-		size_t							count;
+		// most signficant 2 bits = HASH_FLAGS enum
+		// remaining bits = index
+		size_t index;
+		size_t hash;
 	};
 
-	/**
-	 * @brief      Creates a new hash map
-	 *
-	 * @tparam     TKey    Key Type
-	 * @tparam     TValue  Value Type
-	 * @tparam     THash   Hasher Type
-	 */
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
-	inline static Map<TKey, TValue, THash>
-	map_new()
+	inline static HASH_FLAGS
+	hash_slot_flags(Hash_Slot s)
 	{
-		Map<TKey, TValue, THash> result{};
-		result.flags = buf_new<HASH_FLAGS>();
-		result.values = buf_new<Key_Value<TKey, TValue>>();
-		return result;
+		if constexpr (sizeof(size_t) == 8)
+			return HASH_FLAGS((s.index & 0xC000000000000000) >> 62);
+		else if constexpr (sizeof(size_t) == 4)
+			return HASH_FLAGS((s.index & 0xC0000000) >> 30);
 	}
 
-	/**
-	 * @brief      Creates a new hash map with the given allocator
-	 *
-	 * @param[in]  allocator  The allocator to be used by the map
-	 *
-	 * @tparam     TKey       Key Type
-	 * @tparam     TValue     Value Type
-	 * @tparam     THash      Hasher Type
-	 */
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
-	inline static Map<TKey, TValue, THash>
-	map_with_allocator(Allocator allocator)
+	inline static size_t
+	hash_slot_index(Hash_Slot s)
 	{
-		Map<TKey, TValue, THash> result{};
-		result.flags = buf_with_allocator<HASH_FLAGS>(allocator);
-		result.values = buf_with_allocator<Key_Value<TKey, TValue>>(allocator);
-		return result;
+		if constexpr (sizeof(size_t) == 8)
+			return size_t(s.index & 0x3FFFFFFFFFFFFFFF);
+		else if constexpr (sizeof(size_t) == 4)
+			return size_t(s.index & 0x3FFFFFFF);
 	}
 
-	/**
-	 * @brief      Frees the hash map
-	 *
-	 * @param      self    The Hash map
-	 */
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
+	inline static Hash_Slot
+	hash_slot_set_flags(Hash_Slot s, HASH_FLAGS f)
+	{
+		if constexpr (sizeof(size_t) == 8)
+		{
+			s.index &= ~0xC000000000000000;
+			s.index |= (size_t(f) << 62);
+		}
+		else if constexpr (sizeof(size_t) == 4)
+		{
+			s.index &= ~0xC0000000;
+			s.index |= (size_t(f) << 30);
+		}
+		return s;
+	}
+
+	inline static Hash_Slot
+	hash_slot_set_index(Hash_Slot s, size_t index)
+	{
+		if constexpr (sizeof(size_t) == 8)
+		{
+			s.index &= ~0x3FFFFFFFFFFFFFFF;
+			s.index |= (size_t(index) & 0x3FFFFFFFFFFFFFFF);
+		}
+		else if constexpr (sizeof(size_t) == 4)
+		{
+			s.index &= ~0x3FFFFFFF;
+			s.index |= (size_t(index) & 0x3FFFFFFF);
+		}
+		return s;
+	}
+
+	template<typename T, typename THash = Hash<T>>
+	struct Set
+	{
+		Buf<Hash_Slot> _slots;
+		Buf<T> values;
+		size_t count;
+		size_t _deleted_count;
+		size_t _used_count_threshold;
+		size_t _used_count_shrink_threshold;
+		size_t _deleted_count_threshold;
+	};
+
+	template<typename T, typename THash = Hash<T>>
+	inline static Set<T, THash>
+	set_new()
+	{
+		Set<T, THash> self{};
+		self._slots = buf_new<Hash_Slot>();
+		self.values = buf_new<T>();
+		return self;
+	}
+
+	template<typename T, typename THash = Hash<T>>
+	inline static Set<T, THash>
+	set_with_allocator(Allocator allocator)
+	{
+		Set<T, THash> self{};
+		self._slots = buf_with_allocator<Hash_Slot>(allocator);
+		self.values = buf_with_allocator<T>(allocator);
+		return self;
+	}
+
+	template<typename T, typename THash = Hash<T>>
 	inline static void
-	map_free(Map<TKey, TValue, THash>& self)
+	set_free(Set<T, THash>& self)
 	{
-		buf_free(self.flags);
+		buf_free(self._slots);
 		buf_free(self.values);
 		self.count = 0;
+		self._deleted_count = 0;
 	}
 
-	/**
-	 * @brief      Destruct function overload for the key value pair
-	 *
-	 * @param      self    The key value pair
-	 */
-	template<typename TKey, typename TValue>
+	template<typename T, typename THash = Hash<T>>
 	inline static void
-	destruct(Key_Value<TKey, TValue>& self)
+	destruct(Set<T, THash>& self)
 	{
-		destruct(self.key);
-		destruct(self.value);
-	}
-
-	/**
-	 * @brief      Destruct function overload for the hash map
-	 * which frees the hash map and the internal elements as well
-	 *
-	 * @param      self    The hash map
-	 */
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
-	inline static void
-	destruct(Map<TKey, TValue, THash>& self)
-	{
-		for(auto it = map_begin_mut(self);
-			it != map_end_mut(self);
-			it = map_next_mut(self, it))
-		{
-			destruct(*it);
-		}
-		map_free(self);
-	}
-
-	/**
-	 * @brief      Clears the given map
-	 *
-	 * @param      self    The hash map
-	 */
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
-	inline static void
-	map_clear(Map<TKey, TValue, THash>& self)
-	{
-		buf_fill(self.flags, HASH_FLAGS::HASH_EMPTY);
+		buf_free(self._slots);
+		destruct(self.values);
 		self.count = 0;
+		self._deleted_count = 0;
 	}
 
-	/**
-	 * @brief      Returns the capacity of the hash map
-	 *
-	 * @param      self    The hash map
-	 */
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
-	inline static size_t
-	map_capacity(Map<TKey, TValue, THash>& self)
+	template<typename T, typename THash = Hash<T>>
+	inline static void
+	set_clear(Set<T, THash>& self)
 	{
-		return self.flags.count;
+		buf_fill(self._slots, Hash_Slot{});
+		buf_clear(self.values);
+		self.count = 0;
+		self._deleted_count = 0;
 	}
 
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
-	inline static size_t
-	map__find_insertion_index(const THash& hasher,
-		const Buf<HASH_FLAGS>& flags, const Buf<Key_Value<TKey, TValue>>& values,
-		const TKey& key)
+	template<typename T, typename THash = Hash<T>>
+	inline static void
+	set_capacity(Set<T, THash>& self)
 	{
-		size_t cap = flags.count;
-		if(cap == 0) return cap;
+		return self._slots.count;
+	}
 
-		size_t hash_value = hasher(key);
-		size_t index = hash_value % cap;
-		size_t ix = index;
+	struct _Hash_Search_Result
+	{
+		size_t hash;
+		size_t index;
+	};
 
-		//linear probing
+	template<typename T, typename THash = Hash<T>>
+	inline static _Hash_Search_Result
+	_set_find_slot_for_insert(const Buf<Hash_Slot>& slots, const Buf<T>& values, const T& key, size_t* external_hash)
+	{
+		_Hash_Search_Result res{};
+		if (external_hash)
+			res.hash = *external_hash;
+		else
+			res.hash = THash()(key);
+
+		auto cap = slots.count;
+		if (cap == 0) return res;
+
+		auto index = res.hash % cap;
+		auto ix = index;
+
+		// linear probing
 		while(true)
 		{
-			//this is an empty spot or deleted spot then we can use it
-			if (flags[ix] == HASH_FLAGS::HASH_EMPTY ||
-				flags[ix] == HASH_FLAGS::HASH_DELETED)
-				return ix;
+			auto slot = slots[ix];
+			auto slot_hash = slot.hash;
+			auto slot_index = hash_slot_index(slot);
+			auto slot_flags = hash_slot_flags(slot);
 
-			//this position is not empty but if it's the same value then we return it
-			if(values[ix].key == key)
-				return ix;
+			// this is an empty spot or deleted spot then we can use it
+			if (slot_flags == HASH_FLAGS::HASH_EMPTY ||
+				slot_flags == HASH_FLAGS::HASH_DELETED)
+			{
+				break;
+			}
 
-			//the position is not empty and the key is not the same
+			// this position is not empty but if it's the same value then we return it
+			if (slot_hash == res.hash && values[slot_index] == key)
+				break;
+
+			// the position is not empty and the key is not the same
 			++ix;
 			ix %= cap;
 
-			//if we went a full circle then we just return the cap to signal no index has beend found
-			if(ix == index)
-				return cap;
+			// if we went full circle then we just return the cap to signal no index has been found
+			if (ix == index)
+			{
+				ix = cap;
+				break;
+			}
 		}
 
-		return cap;
+		res.index = ix;
+		return res;
 	}
 
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
-	inline static size_t
-	map__find_insertion_index(const Map<TKey, TValue, THash>& self, const TKey& key)
+	template<typename T, typename THash = Hash<T>>
+	inline static _Hash_Search_Result
+	_set_find_slot_for_lookup(const Set<T, THash>& self, const T& key)
 	{
-		return map__find_insertion_index(self.hasher, self.flags, self.values, key);
-	}
+		_Hash_Search_Result res{};
+		res.hash = THash()(key);
 
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
-	inline static size_t
-	map__lookup_index(const Map<TKey, TValue, THash>& self, const TKey& key)
-	{
-		size_t cap = self.flags.count;
-		if(cap == 0) return cap;
+		auto cap = self._slots.count;
+		if (cap == 0) return res;
 
-		size_t hash_value = self.hasher(key);
-		size_t index = hash_value % cap;
-		size_t ix = index;
+		auto index = res.hash % cap;
+		auto ix = index;
 
-		//linear probing goes here
+		// linear probing
 		while(true)
 		{
-			//if the cell is empty then we didn't find the value
-			if(self.flags[ix] == HASH_FLAGS::HASH_EMPTY)
-				return cap;
+			auto slot = self._slots[ix];
+			auto slot_hash = slot.hash;
+			auto slot_index = hash_slot_index(slot);
+			auto slot_flags = hash_slot_flags(slot);
 
-			//if the cell is used and it's the same value then we found it
-			if (self.flags[ix] == HASH_FLAGS::HASH_USED &&
-				self.values[ix].key == key)
-				return ix;
+			// if the cell is empty then we didn't find the value
+			if (slot_flags == HASH_FLAGS::HASH_EMPTY)
+			{
+				ix = cap;
+				break;
+			}
 
-			//increment the index
+			// if the cell is used and it's the same value then we found it
+			if (slot_flags == HASH_FLAGS::HASH_USED &&
+				slot_hash == res.hash &&
+				self.values[slot_index] == key)
+			{
+				break;
+			}
+
+			// the position is not used or the key is not the same
 			++ix;
 			ix %= cap;
 
-			//check if we went full circle
-			if(ix == index)
-				return cap;
+			// if we went full circle then we just return the cap to signal no index has been found
+			if (ix == index)
+			{
+				ix = cap;
+				break;
+			}
 		}
 
-		return cap;
+		res.index = ix;
+		return res;
 	}
 
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
-	inline static void
-	map__maintain_space_complexity(Map<TKey, TValue, THash>& self)
+	template<typename T, typename THash = Hash<T>>
+	inline static T*
+	set_reserve(Set<T, THash>& self, size_t added_count)
 	{
-		if(self.flags.count == 0)
-			map_reserve(self, 8);
-		else if(self.count > (self.flags.count / 2))
-			map_reserve(self, self.flags.count);
-	}
-
-	/**
-	 * @brief      Inserts the given key into the map (doesn't initialize the value to anything)
-	 *
-	 * @param      self    The hash map
-	 * @param[in]  key     The key
-	 * 
-	 * @return     A Pointer to the inserted element
-	 */
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
-	inline static Key_Value<const TKey, TValue>*
-	map_insert(Map<TKey, TValue, THash>& self, const TKey& key)
-	{
-		map__maintain_space_complexity(self);
-
-		auto index = map__find_insertion_index(self, key);
-		self.count += self.flags[index] != HASH_FLAGS::HASH_USED;
-		self.flags[index] = HASH_FLAGS::HASH_USED;
-		self.values[index].key = key;
-		return (Key_Value<const TKey, TValue>*)(self.values.ptr + index);
-	}
-
-	/**
-	 * @brief      Inserts the given key value pair into the map
-	 *
-	 * @param      self    The hash map
-	 * @param[in]  key     The key
-	 * @param[in]  value   The value
-	 * 
-	 * @return     A Pointer to the inserted element
-	 */
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
-	inline static Key_Value<const TKey, TValue>*
-	map_insert(Map<TKey, TValue, THash>& self, const TKey& key, const TValue& value)
-	{
-		map__maintain_space_complexity(self);
-
-		auto index = map__find_insertion_index(self, key);
-		self.count += self.flags[index] != HASH_FLAGS::HASH_USED;
-		self.flags[index] = HASH_FLAGS::HASH_USED;
-		self.values[index] = Key_Value<TKey, TValue> { key, value };
-		return (Key_Value<const TKey, TValue>*)(self.values.ptr + index);
-	}
-
-	/**
-	 * @brief      Searches for the given key in the hash map
-	 *
-	 * @param[in]  self    The hash map
-	 * @param[in]  key     The key
-	 *
-	 * @return     A Pointer to the found element or nullptr in the case it doesn't exist
-	 */
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
-	inline static const Key_Value<const TKey, TValue>*
-	map_lookup(const Map<TKey, TValue, THash>& self, const TKey& key)
-	{
-		auto index = map__lookup_index(self, key);
-		if(index == self.flags.count)
-			return nullptr;
-		return (Key_Value<const TKey, TValue>*)(self.values.ptr + index);
-	}
-
-	/**
-	 * @brief      Searches for the given key in the hash map
-	 *
-	 * @param[in]  self    The hash map
-	 * @param[in]  key     The key
-	 *
-	 * @return     A Pointer to the found element or nullptr in the case it doesn't exist
-	 */
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
-	inline static Key_Value<const TKey, TValue>*
-	map_lookup(Map<TKey, TValue, THash>& self, const TKey& key)
-	{
-		auto index = map__lookup_index(self, key);
-		if(index == self.flags.count)
-			return nullptr;
-		return (Key_Value<const TKey, TValue>*)(self.values.ptr + index);
-	}
-
-	/**
-	 * @brief      Removes the given key from the hash map
-	 *
-	 * @param      self    The hash map
-	 * @param[in]  key     The key
-	 *
-	 * @return     True in case the removal was successful, false otherwise
-	 */
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
-	inline static bool
-	map_remove(Map<TKey, TValue, THash>& self, const TKey& key)
-	{
-		auto index = map__lookup_index(self, key);
-		if(index == self.flags.count)
-			return false;
-		self.flags[index] = HASH_FLAGS::HASH_DELETED;
-		--self.count;
-		return true;
-	}
-
-	/**
-	 * @brief      Removes the given iterator from the hash map
-	 *
-	 * @param      self    The hash map
-	 * @param[in]  it      The iterator
-	 *
-	 * @return     True in case the removal was successful, false otherwise
-	 */
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
-	inline static bool
-	map_remove(Map<TKey, TValue, THash>& self, const Key_Value<const TKey, TValue>* it)
-	{
-		auto diff = it - (Key_Value<const TKey, TValue>*)self.values.ptr;
-		assert(diff >= 0);
-		size_t index = diff;
-		assert(index < self.flags.count);
-		if(self.flags[index] == HASH_FLAGS::HASH_USED)
-		{
-			self.flags[index] = HASH_FLAGS::HASH_DELETED;
-			--self.count;
-			return true;
-		}
-		return false;
-	}
-
-	/**
-	 * @brief      Ensures that the map has the capacity for the expected count
-	 *
-	 * @param      self            The hash map
-	 * @param[in]  expected_count  The expected count
-	 */
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
-	inline static void
-	map_reserve(Map<TKey, TValue, THash>& self, size_t expected_count)
-	{
-		if(self.flags.count - self.count >= expected_count)
+		if (self._slots.count - self.count >= added_count)
 			return;
 
-		size_t double_cap = (self.flags.count * 2);
-		size_t fit = self.count + expected_count;
+		
+		size_t double_cap = (self._slots.count * 2);
+		size_t fit = self.count + added_count;
 		size_t new_cap = double_cap > fit ? double_cap : fit;
 
-		auto new_flags = buf_with_allocator<HASH_FLAGS>(self.flags.allocator);
-		buf_resize(new_flags, new_cap);
-		auto new_values = buf_with_allocator<Key_Value<TKey, TValue>>(self.values.allocator);
-		buf_resize(new_values, new_cap);
+		auto new
+	}
 
-		::memset(new_flags.ptr, 0, new_flags.count * sizeof(HASH_FLAGS));
+	template<typename T, typename THash = Hash<T>>
+	inline static void
+	_set_reserve_exact(Set<T, THash>& self, size_t new_count)
+	{
+		auto new_slots = buf_with_allocator<Hash_Slot>(self._slots.allocator);
+		buf_resize_fill(new_slots, new_count, Hash_Slot{});
 
+		self._deleted_count = 0;
+		self._used_count_threshold = new_count - (new_count >> 2);
+		self._deleted_count_threshold = (new_count >> 3) + (new_count >> 4);
+		self._used_count_shrink_threshold = new_count >> 2;
+
+		// do a rehash
 		if (self.count != 0)
 		{
-			for (size_t i = 0; i < self.flags.count; ++i)
+			for (size_t i = 0; i < self._slots.count; ++i)
 			{
-				if (self.flags[i] == HASH_FLAGS::HASH_USED)
+				auto slot = self._slots[i];
+				auto flags = hash_slot_flags(slot);
+				if (flags == HASH_FLAGS::HASH_USED)
 				{
-					size_t new_index = map__find_insertion_index(self.hasher, new_flags, new_values, self.values[i].key);
-					new_flags[new_index] = HASH_FLAGS::HASH_USED;
-					new_values[new_index] = self.values[i];
+					auto index = hash_slot_index(slot);
+					auto res = _set_find_slot_for_insert(new_slots, self.values, self.values[index], &slot.hash);
+					new_slots[res.index] = slot;
 				}
 			}
 		}
 
-		buf_free(self.flags);
-		buf_free(self.values);
-
-		self.flags = new_flags;
-		self.values = new_values;
+		buf_free(self._slots);
+		self._slots = new_slots;
 	}
 
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
-	inline static Map<TKey, TValue, THash>
-	map_clone(const Map<TKey, TValue, THash>& other, Allocator allocator = allocator_top())
+	template<typename T, typename THash = Hash<T>>
+	inline static void
+	_set_maintain_space_complexity(Set<T, THash>& self)
 	{
-		Map<TKey, TValue, THash> self{};
-		self.flags = buf_memcpy_clone(other.flags, allocator);
+		if (self.count == 0)
+		{
+			_set_reserve_exact(self, 8);
+		}
+		else if (self.count + 1 > self._used_count_threshold)
+		{
+			_set_reserve_exact(self, self._slots.count * 2);
+		}
+	}
+
+	template<typename T, typename THash = Hash<T>>
+	inline static void
+	set_reserve(Set<T, THash>& self, size_t added_count)
+	{
+		if (self.count + added_count > self._used_count_threshold)
+			_set_reserve_exact(self, self.count + added_count);
+	}
+
+	template<typename T, typename THash = Hash<T>>
+	inline static T*
+	set_insert(Set<T, THash>& self, const T& key)
+	{
+		_set_maintain_space_complexity(self);
+
+		auto res = _set_find_slot_for_insert(self._slots, self.values, key, nullptr);
+
+		auto& slot = self._slots[res.index];
+		auto flags = hash_slot_flags(slot);
+		switch(flags)
+		{
+		case HASH_FLAGS::HASH_EMPTY:
+		{
+			slot = hash_slot_set_flags(slot, HASH_FLAGS::HASH_USED);
+			slot = hash_slot_set_index(slot, self.count);
+			slot.hash = res.hash;
+			++self.count;
+			return buf_push(self.values, key);
+		}
+		case HASH_FLAGS::HASH_DELETED:
+		{
+			slot = hash_slot_set_flags(slot, HASH_FLAGS::HASH_USED);
+			slot = hash_slot_set_index(slot, self.count);
+			slot.hash = res.hash;
+			++self.count;
+			--self._deleted_count;
+			return buf_push(self.values, key);
+		}
+		case HASH_FLAGS::HASH_USED:
+		{
+			auto index = hash_slot_index(slot);
+			return &self.values[index];
+		}
+		default:
+		{
+			assert(false && "unreachable");
+			return nullptr;
+		}
+		}
+	}
+
+	template<typename T, typename THash = Hash<T>>
+	inline static const T*
+	set_lookup(const Set<T, THash>& self, const T& key)
+	{
+		auto res = _set_find_slot_for_lookup(self, key);
+		if (res.index == self._slots.count)
+			return nullptr;
+		auto& slot = self._slots[res.index];
+		auto index = hash_slot_index(slot);
+		return (const T*)(self.values.ptr + index);
+	}
+
+	template<typename T, typename THash = Hash<T>>
+	inline static bool
+	set_remove(Set<T, THash>& self, const T& key)
+	{
+		auto res = _set_find_slot_for_lookup(self, key);
+		if (res.index == self._slots.count)
+			return false;
+		auto& slot = self._slots[res.index];
+		auto index = hash_slot_index(slot);
+		slot = hash_slot_set_flags(slot, HASH_FLAGS::HASH_DELETED);
+
+		if (index == self.count - 1)
+		{
+			buf_remove(self.values, index);
+		}
+		else
+		{
+			// fixup the index of the last element after swap
+			auto last_res = _set_find_slot_for_insert(self._slots, self.values, self.values[self.count - 1], nullptr);
+			self._slots[last_res.index] = hash_slot_set_index(self._slots[last_res.index], index);
+			buf_remove(self.values, index);
+		}
+		
+		--self.count;
+		++self._deleted_count;
+
+		// rehash because of size is too low
+		if (self.count < self._used_count_shrink_threshold && self._slots.count > 8)
+		{
+			_set_reserve_exact(self, self._slots.count >> 1);
+			buf_shrink_to_fit(self.values);
+		}
+		// rehash because of too many deleted values
+		else if (self._deleted_count > self._deleted_count_threshold)
+		{
+			_set_reserve_exact(self, self._slots.count);
+		}
+		return true;
+	}
+
+	template<typename T, typename THash = Hash<T>>
+	inline static Set<T, THash>
+	set_clone(const Set<T, THash>& other, Allocator allocator = allocator_top())
+	{
+		Set<T, THash> self = other;
+		self._slots = buf_memcpy_clone(other._slots, allocator);
 		self.values = buf_clone(other.values, allocator);
-		self.hasher = other.hasher;
-		self.count = other.count;
 		return self;
 	}
 
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
-	inline static Map<TKey, TValue, THash>
-	clone(const Map<TKey, TValue, THash>& other)
+	template<typename T, typename THash = Hash<T>>
+	inline static Set<T, THash>
+	set_memcpy_clone(const Set<T, THash>& other, Allocator allocator = allocator_top())
 	{
-		return map_clone(other);
-	}
-
-	// map_memcpy_clone is used with trivially copyable types (types a clone if produced by doing a byte by byte copy),
-	// which is fast variant of map_clone
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
-	inline static Map<TKey, TValue, THash>
-	map_memcpy_clone(const Map<TKey, TValue, THash>& other, Allocator allocator = allocator_top())
-	{
-		Map<TKey, TValue, THash> self{};
-		self.flags = buf_memcpy_clone(other.flags, allocator);
+		Set<T, THash> self = other;
+		self._slots = buf_memcpy_clone(other._slots, allocator);
 		self.values = buf_memcpy_clone(other.values, allocator);
-		self.hasher = other.hasher;
-		self.count = other.count;
 		return self;
 	}
 
-	/**
-	 * @brief      Returns a iterator/pointer to the first element in the hash map
-	 *
-	 * @param[in]  self    The hash map
-	 */
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
-	inline static const Key_Value<const TKey, TValue>*
-	map_begin(const Map<TKey, TValue, THash>& self)
+	template<typename T, typename THash = Hash<T>>
+	inline static Set<T, THash>
+	clone(const Set<T, THash>& other)
 	{
-		for(size_t i = 0; i < self.flags.count; ++i)
-			if(self.flags[i] == HASH_FLAGS::HASH_USED)
-				return (Key_Value<const TKey, TValue>*)&self.values[i];
-		return (Key_Value<const TKey, TValue>*)buf_end(self.values);
+		return set_clone(other);
 	}
 
-	/**
-	 * @brief      Returns a iterator/pointer to the first element in the hash map
-	 *
-	 * @param[in]  self    The hash map
-	 */
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
-	inline static Key_Value<const TKey, TValue>*
-	map_begin(Map<TKey, TValue, THash>& self)
+	template<typename T, typename THash = Hash<T>>
+	inline static const T*
+	set_begin(const Set<T, THash>& self)
 	{
-		for(size_t i = 0; i < self.flags.count; ++i)
-			if(self.flags[i] == HASH_FLAGS::HASH_USED)
-				return (Key_Value<const TKey, TValue>*)&self.values[i];
-		return (Key_Value<const TKey, TValue>*)buf_end(self.values);
+		return buf_begin(self.values);
 	}
 
-	/**
-	 * @brief      Returns a iterator/pointer to the first element in the hash map
-	 * where the key part is not const qualified so that it can be edited (not advised to use
-	 * this unless you know what you're doing)
-	 *
-	 * @param[in]  self    The hash map
-	 */
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
-	inline static Key_Value<TKey, TValue>*
-	map_begin_mut(Map<TKey, TValue, THash>& self)
+	template<typename T, typename THash = Hash<T>>
+	inline static const T*
+	set_end(const Set<T, THash>& self)
 	{
-		for(size_t i = 0; i < self.flags.count; ++i)
-			if(self.flags[i] == HASH_FLAGS::HASH_USED)
-				return &self.values[i];
 		return buf_end(self.values);
 	}
 
-	/**
-	 * @brief      Advances the given iterator/pointer to the next element in the hash map
-	 *
-	 * @param[in]  self    The hash map
-	 * @param[in]  val     The iterator
-	 */
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
-	inline static const Key_Value<const TKey, TValue>*
-	map_next(const Map<TKey, TValue, THash>& self, const Key_Value<const TKey, TValue>* val)
+	template<typename T, typename THash = Hash<T>>
+	inline static const T*
+	begin(const Set<T, THash>& self)
 	{
-		auto diff = (Key_Value<TKey, TValue>*)val - self.values.ptr;
-		assert(diff >= 0);
-		size_t index = diff;
-		assert(index < self.flags.count);
-		++index;
-		for(; index < self.flags.count; ++index)
-		{
-			if(self.flags[index] == HASH_FLAGS::HASH_USED)
-				return (Key_Value<const TKey, TValue>*)&self.values[index];
-		}
-		return map_end(self);
+		return buf_begin(self.values);
 	}
 
-	/**
-	 * @brief      Advances the given iterator/pointer to the next element in the hash map
-	 *
-	 * @param[in]  self    The hash map
-	 * @param[in]  val     The iterator
-	 */
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
+	template<typename T, typename THash = Hash<T>>
+	inline static const T*
+	end(const Set<T, THash>& self)
+	{
+		return buf_end(self.values);
+	}
+
+	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	using Map = Set<Key_Value<TKey, TValue>, THash>;
+
+	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	inline static Map<TKey, TValue, THash>
+	map_new()
+	{
+		return set_new<Key_Value<TKey, TValue>, THash>();
+	}
+
+	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	inline static Map<TKey, TValue, THash>
+	map_with_allocator(Allocator allocator)
+	{
+		return set_with_allocator<Key_Value<TKey, TValue>, THash>(allocator);
+	}
+
+	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	inline static void
+	map_free(Map<TKey, TValue, THash>& self)
+	{
+		set_free(self);
+	}
+
+	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	inline static void
+	map_clear(Map<TKey, TValue, THash>& self)
+	{
+		set_clear(self);
+	}
+
+	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	inline static size_t
+	map_capacity(Map<TKey, TValue, THash>& self)
+	{
+		return set_capacity(self);
+	}
+
+	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
 	inline static Key_Value<const TKey, TValue>*
-	map_next(Map<TKey, TValue, THash>& self, Key_Value<const TKey, TValue>* val)
+	map_insert(Map<TKey, TValue, THash>& self, const TKey& key)
 	{
-		auto diff = (Key_Value<TKey, TValue>*)val - self.values.ptr;
-		assert(diff >= 0);
-		size_t index = diff;
-		assert(index < self.flags.count);
-		++index;
-		for(; index < self.flags.count; ++index)
-		{
-			if(self.flags[index] == HASH_FLAGS::HASH_USED)
-				return (Key_Value<const TKey, TValue>*)&self.values[index];
-		}
-		return map_end(self);
+		return (Key_Value<const TKey, TValue>*)set_insert(self, Key_Value<TKey, TValue>{key});
 	}
 
-	/**
-	 * @brief      Advances the given iterator/pointer to the next element in the hash map
-	 * where the key part is not const qualified so that it can be edited (not advised to use
-	 * this unless you know what you're doing)
-	 * 
-	 * @param[in]  self    The hash map
-	 * @param[in]  val     The iterator
-	 */
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
-	inline static Key_Value<TKey, TValue>*
-	map_next_mut(Map<TKey, TValue, THash>& self, Key_Value<TKey, TValue>* val)
+	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	inline static Key_Value<const TKey, TValue>*
+	map_insert(Map<TKey, TValue, THash>& self, const TKey& key, const TValue& value)
 	{
-		auto diff = (Key_Value<TKey, TValue>*)val - self.values.ptr;
-		assert(diff >= 0);
-		size_t index = diff;
-		assert(index < self.flags.count);
-		++index;
-		for(; index < self.flags.count; ++index)
-		{
-			if(self.flags[index] == HASH_FLAGS::HASH_USED)
-				return (Key_Value<TKey, TValue>*)&self.values[index];
-		}
-		return map_end_mut(self);
+		return (Key_Value<const TKey, TValue>*)set_insert(self, Key_Value<TKey, TValue>{key, value});
 	}
 
-	/**
-	 * @brief      Returns an iterator/pointer to the end of the hash map
-	 *
-	 * @param[in]  self    The hash map
-	 */
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
+	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	inline static const Key_Value<const TKey, TValue>*
+	map_lookup(const Map<TKey, TValue, THash>& self, const TKey& key)
+	{
+		return (const Key_Value<const TKey, TValue>*)set_lookup(self, Key_Value<TKey, TValue>{key});
+	}
+
+	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	inline static Key_Value<const TKey, TValue>*
+	map_lookup(Map<TKey, TValue, THash>& self, const TKey& key)
+	{
+		return (Key_Value<const TKey, TValue>*)set_lookup(self, Key_Value<TKey, TValue>{key});
+	}
+
+	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	inline static bool
+	map_remove(Map<TKey, TValue, THash>& self, const TKey& key)
+	{
+		return set_remove(self, Key_Value<TKey, TValue>{key});
+	}
+
+	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	inline static void
+	map_reserve(Map<TKey, TValue, THash>& self, size_t added_count)
+	{
+		set_reserve(self, added_count);
+	}
+
+	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	inline static Map<TKey, TValue, THash>
+	map_clone(const Map<TKey, TValue, THash>& other, Allocator allocator = allocator_top())
+	{
+		return set_clone(other, allocator);
+	}
+
+	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	inline static Map<TKey, TValue, THash>
+	map_memcpy_clone(const Map<TKey, TValue, THash>& other, Allocator allocator = allocator_top())
+	{
+		return set_memcpy_clone(self, allocator);
+	}
+
+	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	inline static const Key_Value<const TKey, TValue>*
+	map_begin(const Map<TKey, TValue, THash>& self)
+	{
+		return (const Key_Value<const TKey, TValue>*)set_begin(self);
+	}
+
+	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	inline static Key_Value<const TKey, TValue>*
+	map_begin(Map<TKey, TValue, THash>& self)
+	{
+		return (Key_Value<const TKey, TValue>*)set_begin(self);
+	}
+
+	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
 	inline static const Key_Value<const TKey, TValue>*
 	map_end(const Map<TKey, TValue, THash>& self)
 	{
-		return (Key_Value<const TKey, TValue>*)buf_end(self.values);
+		return (Key_Value<const TKey, TValue>*)set_end(self);
 	}
 
-	/**
-	 * @brief      Returns an iterator/pointer to the end of the hash map
-	 *
-	 * @param[in]  self    The hash map
-	 */
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
+	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
 	inline static Key_Value<const TKey, TValue>*
 	map_end(Map<TKey, TValue, THash>& self)
 	{
-		return (Key_Value<const TKey, TValue>*)buf_end(self.values);
+		return (Key_Value<const TKey, TValue>*)set_end(self);
 	}
 
-	/**
-	 * @brief      Returns an iterator/pointer to the end of the hash map
-	 * where the key part is not const qualified so that it can be edited (not advised to use
-	 * this unless you know what you're doing)
-	 *
-	 * @param[in]  self    The hash map
-	 */
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
-	inline static Key_Value<TKey, TValue>*
-	map_end_mut(Map<TKey, TValue, THash>& self)
-	{
-		return (Key_Value<TKey, TValue>*)buf_end(self.values);
-	}
-
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
-	struct Map_Iterator
-	{
-		Key_Value<const TKey, TValue>* it;
-		Map<TKey, TValue, THash>* map;
-
-		Map_Iterator&
-		operator++()
-		{
-			it = map_next(*map, it);
-			return *this;
-		}
-
-		Map_Iterator
-		operator++(int)
-		{
-			auto r = *this;
-			it = map_next(*map, it);
-			return r;
-		}
-
-		bool
-		operator==(const Map_Iterator& other) const
-		{
-			return it == other.it && map == other.map;
-		}
-
-		bool
-		operator!=(const Map_Iterator& other) const
-		{
-			return !operator==(other);
-		}
-
-		Key_Value<const TKey, TValue>&
-		operator*()
-		{
-			return *it;
-		}
-
-		const Key_Value<const TKey, TValue>&
-		operator*() const
-		{
-			return *it;
-		}
-
-		Key_Value<const TKey, TValue>*
-		operator->()
-		{
-			return it;
-		}
-
-		const Key_Value<const TKey, TValue>*
-		operator->() const
-		{
-			return it;
-		}
-	};
-
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
-	struct Const_Map_Iterator
-	{
-		const Key_Value<const TKey, TValue>* it;
-		const Map<TKey, TValue, THash>* map;
-
-		Const_Map_Iterator&
-		operator++()
-		{
-			it = map_next(*map, it);
-			return *this;
-		}
-
-		Const_Map_Iterator
-		operator++(int)
-		{
-			auto r = *this;
-			it = map_next(*map, it);
-			return r;
-		}
-
-		bool
-		operator==(const Const_Map_Iterator& other) const
-		{
-			return it == other.it && map == other.map;
-		}
-
-		bool
-		operator!=(const Const_Map_Iterator& other) const
-		{
-			return !operator==(other);
-		}
-
-		const Key_Value<const TKey, TValue>&
-		operator*() const
-		{
-			return *it;
-		}
-
-		const Key_Value<const TKey, TValue>*
-		operator->() const
-		{
-			return it;
-		}
-	};
-
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
-	inline static Map_Iterator<TKey, TValue, THash>
-	begin(Map<TKey, TValue, THash>& self)
-	{
-		Map_Iterator<TKey, TValue, THash> r{};
-		r.it = map_begin(self);
-		r.map = &self;
-		return r;
-	}
-
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
-	inline static Const_Map_Iterator<TKey, TValue, THash>
+	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	inline static const Key_Value<const TKey, TValue>*
 	begin(const Map<TKey, TValue, THash>& self)
 	{
-		Const_Map_Iterator<TKey, TValue, THash> r{};
-		r.it = map_begin(self);
-		r.map = &self;
-		return r;
+		return (const Key_Value<const TKey, TValue>*)set_begin(self);
 	}
 
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
-	inline static Map_Iterator<TKey, TValue, THash>
-	end(Map<TKey, TValue, THash>& self)
+	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	inline static Key_Value<const TKey, TValue>*
+	begin(Map<TKey, TValue, THash>& self)
 	{
-		Map_Iterator<TKey, TValue, THash> r{};
-		r.it = map_end(self);
-		r.map = &self;
-		return r;
+		return (Key_Value<const TKey, TValue>*)set_begin(self);
 	}
 
-	template<typename TKey, typename TValue, typename THash = Hash<TKey>>
-	inline static Const_Map_Iterator<TKey, TValue, THash>
+	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	inline static const Key_Value<const TKey, TValue>*
 	end(const Map<TKey, TValue, THash>& self)
 	{
-		Const_Map_Iterator<TKey, TValue, THash> r{};
-		r.it = map_end(self);
-		r.map = &self;
-		return r;
+		return (Key_Value<const TKey, TValue>*)set_end(self);
+	}
+
+	template<typename TKey, typename TValue, typename THash = Hash<Key_Value<TKey, TValue>>>
+	inline static Key_Value<const TKey, TValue>*
+	end(Map<TKey, TValue, THash>& self)
+	{
+		return (Key_Value<const TKey, TValue>*)set_end(self);
 	}
 }

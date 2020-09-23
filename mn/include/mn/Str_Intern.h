@@ -16,7 +16,7 @@ namespace mn
 	struct Str_Intern
 	{
 		Str tmp_str;
-		Map<Str, size_t> strings;
+		Set<Str> strings;
 	};
 
 	/**
@@ -27,7 +27,7 @@ namespace mn
 	{
 		return Str_Intern {
 			str_new(),
-			map_new<Str, size_t>()
+			set_new<Str>()
 		};
 	}
 
@@ -41,7 +41,7 @@ namespace mn
 	{
 		return Str_Intern {
 			str_with_allocator(allocator),
-			map_with_allocator<Str, size_t>(allocator)
+			set_with_allocator<Str>(allocator)
 		};
 	}
 

@@ -7,25 +7,21 @@ namespace mn
 	const char*
 	str_intern(Str_Intern& self, const char* str)
 	{
-		if(auto it = map_lookup(self.strings, str_lit(str)))
+		if(auto it = set_lookup(self.strings, str_lit(str)))
 		{
-			++it->value;
-			return it->key.ptr;
+			return it->ptr;
 		}
-		return map_insert(self.strings, str_from_c(str, self.tmp_str.allocator),
-						  size_t(1))->key.ptr;
+		return set_insert(self.strings, str_from_c(str, self.tmp_str.allocator))->ptr;
 	}
 
 	const char*
 	str_intern(Str_Intern& self, const Str& str)
 	{
-		if(auto it = map_lookup(self.strings, str))
+		if(auto it = set_lookup(self.strings, str))
 		{
-			++it->value;
-			return it->key.ptr;
+			return it->ptr;
 		}
-		return map_insert(self.strings, str_clone(str, self.tmp_str.allocator),
-						  size_t(1))->key.ptr;
+		return set_insert(self.strings, str_clone(str, self.tmp_str.allocator))->ptr;
 	}
 
 	const char*

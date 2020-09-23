@@ -291,6 +291,47 @@ TEST_CASE("String lower case and upper case")
 	str_free(word3);
 }
 
+TEST_CASE("set general cases")
+{
+	auto num = mn::set_new<int>();
+
+	for (int i = 0; i < 10; ++i)
+		mn::set_insert(num, i);
+
+	for (int i = 0; i < 10; ++i)
+	{
+		CHECK(*mn::set_lookup(num, i) == i);
+	}
+
+	for (int i = 10; i < 20; ++i)
+		CHECK(mn::set_lookup(num, i) == nullptr);
+
+	for (int i = 0; i < 10; ++i)
+	{
+		if (i % 2 == 0)
+			mn::set_remove(num, i);
+	}
+
+	for (int i = 0; i < 10; ++i)
+	{
+		if (i % 2 == 0)
+		{
+			CHECK(mn::set_lookup(num, i) == nullptr);
+		}
+		else
+		{
+			CHECK(*mn::set_lookup(num, i) == i);
+		}
+	}
+
+	int i = 0;
+	for (auto n: num)
+		++i;
+	CHECK(i == 5);
+
+	mn::set_free(num);
+}
+
 TEST_CASE("map general cases")
 {
 	auto num = map_new<int, int>();
@@ -325,12 +366,8 @@ TEST_CASE("map general cases")
 	}
 
 	int i = 0;
-	for (auto it = map_begin(num);
-		it != map_end(num);
-		it = map_next(num, it))
-	{
+	for(const auto& [key, value]: num)
 		++i;
-	}
 	CHECK(i == 5);
 
 	map_free(num);
@@ -531,12 +568,12 @@ TEST_CASE("Rune")
 	CHECK(rune_upper('A') == 'A');
 	CHECK(rune_lower('A') == 'a');
 	CHECK(rune_lower('a') == 'a');
-    #if defined(OS_WINDOWS)
-    CHECK(rune_lower('\u0645') == '\u0645');
-    #elif defined(OS_LINUX)
-    CHECK(rune_lower('U+0645') == 'U+0645');
-    #elif defined(OS_MACOS)
-    CHECK(rune_lower('U+0645') == 'U+0645');
+	#if defined(OS_WINDOWS)
+		CHECK(rune_lower('\u0645') == '\u0645');
+	#elif defined(OS_LINUX)
+		CHECK(rune_lower('U+0645') == 'U+0645');
+	#elif defined(OS_MACOS)
+		CHECK(rune_lower('U+0645') == 'U+0645');
 	#endif
 }
 

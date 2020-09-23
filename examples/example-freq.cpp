@@ -31,8 +31,10 @@ main()
 		mn::memory::tmp()->free_all();
 	}
 
-	for (auto it = mn::map_begin(freq); it != mn::map_end(freq); it = mn::map_next(freq, it))
-		mn::print("{} -> {}\n", it->key, it->value);
+	for (const auto& [key, value]: freq)
+	{
+		mn::print("{} -> {}\n", key, value);
+	}
 
 	return 0;
 }

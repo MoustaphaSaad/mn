@@ -40,25 +40,14 @@
     </Expand>
   </Type>
 
-  <Type Name="mn::Map&lt;*&gt;">
+  <Type Name="mn::Set&lt;*&gt;">
     <DisplayString Condition="count == 0">empty</DisplayString>
     <DisplayString Condition="count != 0">{{ count={count} }}</DisplayString>
     <Expand>
-      <CustomListItems>
-        <Variable Name="i" InitialValue="0"/>
-        <Loop>
-          <If Condition="i >= (flags.count)">
-            <Break/>
-          </If>
-          <If Condition="i == 0">
-            <Item Name="Key">"Value",sb</Item>
-          </If>
-          <If Condition="flags.ptr[i] == 1">
-            <Item Name="{values.ptr[i].key}">values.ptr[i].value</Item>
-          </If>
-          <Exec>i = i + 1</Exec>
-        </Loop>
-      </CustomListItems>
+      <ArrayItems>
+        <Size>count</Size>
+        <ValuePointer>values.ptr</ValuePointer>
+      </ArrayItems>
     </Expand>
   </Type>
   
