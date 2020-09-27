@@ -448,9 +448,20 @@ namespace mn
 			auto slot_hash = slot.hash;
 			auto slot_index = hash_slot_index(slot);
 			auto slot_flags = hash_slot_flags(slot);
-
+			switch (slot_flags)
+			{
+			// this position is not empty but if it's the same value then we return it
+			case HASH_FLAGS::HASH_USED:
+			{
+				if (slot_hash == res.hash && values[slot_index] == key)
+				{
+					res.index = ix;
+					return res;
+				}
+				break;
+			}
 			// this is an empty slot then we can use it
-			if (slot_flags == HASH_FLAGS::HASH_EMPTY)
+			case HASH_FLAGS::HASH_EMPTY:
 			{
 				// we didn't find the key, so check the first deleted slot if we found one then
 				// reuse it
@@ -464,18 +475,20 @@ namespace mn
 					res.index = ix;
 				}
 				return res;
-			}
-
-			// this is a deleted slot we'll remember it
-			if (found_first_deleted_slot == false && slot_flags == HASH_FLAGS::HASH_DELETED)
-			{
-				first_deleted_slot_index = ix;
-				found_first_deleted_slot = true;
-			}
-
-			// this position is not empty but if it's the same value then we return it
-			if (slot_flags == HASH_FLAGS::HASH_USED && slot_hash == res.hash && values[slot_index] == key)
 				break;
+			}
+			// this is a deleted slot we'll remember it just in case we wanted to resuse it
+			case HASH_FLAGS::HASH_DELETED:
+			{
+				if (found_first_deleted_slot == false)
+				{
+					first_deleted_slot_index = ix;
+					found_first_deleted_slot = true;
+				}
+				break;
+			}
+			default: assert(false && "unreachable"); return _Hash_Search_Result{};
+			}
 
 			// the position is not empty and the key is not the same
 			++ix;
@@ -642,7 +655,6 @@ namespace mn
 		case HASH_FLAGS::HASH_USED:
 		{
 			auto index = hash_slot_index(slot);
-			assert(self.values[index] == key);
 			return &self.values[index];
 		}
 		default:
@@ -684,8 +696,6 @@ namespace mn
 		{
 			// fixup the index of the last element after swap
 			auto last_res = _set_find_slot_for_lookup(self, self.values[self.count - 1]);
-			auto value_index = hash_slot_index(self._slots[last_res.index]);
-			assert(value_index == self.count - 1);
 			self._slots[last_res.index] = hash_slot_set_index(self._slots[last_res.index], index);
 			buf_remove(self.values, index);
 		}
