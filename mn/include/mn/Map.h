@@ -435,7 +435,7 @@ namespace mn
 		auto cap = _slots.count;
 		if (cap == 0) return res;
 
-		auto index = res.hash % cap;
+		auto index = res.hash & (cap - 1);
 		auto ix = index;
 
 		size_t first_deleted_slot_index = 0;
@@ -492,7 +492,7 @@ namespace mn
 
 			// the position is not empty and the key is not the same
 			++ix;
-			ix %= cap;
+			ix &= (cap - 1);
 
 			// if we went full circle then we just return the cap to signal no index has been found
 			if (ix == index)
@@ -516,7 +516,7 @@ namespace mn
 		auto cap = self._slots.count;
 		if (cap == 0) return res;
 
-		auto index = res.hash % cap;
+		auto index = res.hash & (cap - 1);
 		auto ix = index;
 
 		// linear probing
@@ -544,7 +544,7 @@ namespace mn
 
 			// the position is not used or the key is not the same
 			++ix;
-			ix %= cap;
+			ix &= (cap - 1);
 
 			// if we went full circle then we just return the cap to signal no index has been found
 			if (ix == index)
