@@ -353,6 +353,20 @@ namespace mn
 		return file_move(src.ptr, dst.ptr);
 	}
 
+	/**
+	* @brief      Returns file name without the path
+	*
+	* @param[in]  path  The file path
+	*/
+	MN_EXPORT Str
+	file_name(const Str& path, Allocator allocator = allocator_top());
+
+	inline static Str
+	file_name(const char* path, Allocator allocator = allocator_top())
+	{
+		return file_name(str_lit(path), allocator);
+	}
+
 	MN_EXPORT Str
 	file_tmp(const Str& base, const Str& ext, Allocator allocator = allocator_top());
 

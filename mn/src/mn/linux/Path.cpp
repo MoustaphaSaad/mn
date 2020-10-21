@@ -13,6 +13,7 @@
 #include <errno.h>
 #include <dirent.h>
 #include <linux/limits.h>
+#include <libgen.h>
 
 #include <assert.h>
 
@@ -265,6 +266,16 @@ namespace mn
 	file_move(const char* src, const char* dst)
 	{
 		return ::rename(src, dst) == 0;
+	}
+	
+	Str 
+	file_name(const Str& path, Allocator allocator)
+	{
+		Str path_copy = mn::str_clone(path);
+		mn_defer(str_free(path_copy));
+
+		char* filename = ::basename(path_copy.ptr);
+		return str_from_c(filename, allocator);
 	}
 
 	Str
