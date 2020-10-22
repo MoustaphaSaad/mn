@@ -291,7 +291,7 @@ namespace mn
 		return (int64_t(data.ftLastWriteTime.dwHighDateTime) << 32) | int64_t(data.ftLastWriteTime.dwLowDateTime);
 	}
 
-	//Tip 
+	//Tip
 	//Starting with Windows 10, version 1607, for the unicode version of this function (MoveFileW),
 	//you can opt-in to remove the MAX_PATH limitation without prepending "\\?\". See the
 	//"Maximum Path Length Limitation" section of Naming Files, Paths, and Namespaces for details.
@@ -344,15 +344,15 @@ namespace mn
 		return MoveFile((LPCWSTR)os_src_str.ptr, (LPCWSTR)os_dst_str.ptr);
 	}
 
-	Str 
+	Str
 	file_name(const Str& path, Allocator allocator)
 	{
 		auto os_path = path_os_encoding(path, allocator_top());
 		mn_defer(str_free(os_path));
 
-		char fname[256];		// max allowable for each 
-		char extension[265];	// is 256
-		_splitpath_s(os_path.ptr, NULL, 0, NULL, 0, fname, 256, extension, 256);
+		char fname[_MAX_FNAME];		// max allowable for each
+		char extension[_MAX_EXT];	// is 256
+		_splitpath_s(os_path.ptr, NULL, 0, NULL, 0, fname, sizeof(fname), extension, sizeof(extension));
 
 		return strf(allocator, "{}{}",fname, extension);
 	}

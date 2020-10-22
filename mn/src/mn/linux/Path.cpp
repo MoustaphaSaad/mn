@@ -225,7 +225,7 @@ namespace mn
 		int fd_src = ::open(src, O_RDONLY);
 		if(fd_src < 0)
 			return false;
-		
+
 		int fd_dst = ::open(dst, O_WRONLY | O_CREAT | O_EXCL, 0666);
 		if(fd_dst < 0)
 			goto FAILURE;
@@ -267,11 +267,11 @@ namespace mn
 	{
 		return ::rename(src, dst) == 0;
 	}
-	
-	Str 
+
+	Str
 	file_name(const Str& path, Allocator allocator)
 	{
-		Str path_copy = mn::str_clone(path);
+		Str path_copy = str_clone(path);
 		mn_defer(str_free(path_copy));
 
 		char* filename = ::basename(path_copy.ptr);
@@ -415,7 +415,7 @@ namespace mn
 		os_str = secure_getenv("HOME");
 		if (os_str && ::strlen(os_str) > 0)
 			return path_join(mn::str_with_allocator(allocator), os_str, ".config");
-		
+
 		return str_from_c("~/.config", allocator);
 	}
 }
