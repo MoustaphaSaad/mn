@@ -7,7 +7,6 @@
 #include "mn/Buf.h"
 #include "mn/Map.h"
 #include "mn/File.h"
-#include "mn/Json.h"
 
 namespace fmt
 {
@@ -81,59 +80,6 @@ namespace fmt
 				++i;
 			}
 			format_to(ctx.out(), " }}");
-			return ctx.out();
-		}
-	};
-
-	template<>
-	struct formatter<mn::json::Value> {
-		template <typename ParseContext>
-		constexpr auto parse(ParseContext &ctx) { return ctx.begin(); }
-
-		template <typename FormatContext>
-		auto format(const mn::json::Value &v, FormatContext &ctx) {
-			switch(v.kind)
-			{
-			case mn::json::Value::KIND_NULL:
-				format_to(ctx.out(), "null");
-				break;
-			case mn::json::Value::KIND_BOOL:
-				format_to(ctx.out(), "{}", v.as_bool ? "true" : "false");
-				break;
-			case mn::json::Value::KIND_NUMBER:
-				format_to(ctx.out(), "{}", v.as_number);
-				break;
-			case mn::json::Value::KIND_STRING:
-				format_to(ctx.out(), "\"{}\"", *v.as_string);
-				break;
-			case mn::json::Value::KIND_ARRAY:
-				format_to(ctx.out(), "[");
-				for(size_t i = 0; i < v.as_array->count; ++i)
-				{
-					if (i != 0)
-						format_to(ctx.out(), ", ");
-					format_to(ctx.out(), "{}", (*v.as_array)[i]);
-				}
-				format_to(ctx.out(), "]");
-				break;
-			case mn::json::Value::KIND_OBJECT:
-			{
-				format_to(ctx.out(), "{{");
-				size_t i = 0;
-				for (const auto& [key, value]: *v.as_object)
-				{
-					if (i != 0)
-						format_to(ctx.out(), ", ");
-					format_to(ctx.out(), "\"{}\":{}", key, value);
-					++i;
-				}
-				format_to(ctx.out(), "}}");
-				break;
-			}
-			default:
-				assert(false && "unreachable");
-				break;
-			}
 			return ctx.out();
 		}
 	};
