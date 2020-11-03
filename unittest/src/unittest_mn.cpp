@@ -1054,7 +1054,7 @@ clone(const Points& p)
 
 TEST_CASE("ref bag")
 {
-	auto e = entity_new();
+	auto e = _entity_new();
 	auto bag = mn::ref_bag_new<Points>();
 	mn_defer(mn::ref_bag_free(bag));
 
@@ -1067,24 +1067,6 @@ TEST_CASE("ref bag")
 	CHECK(rp->points.count == 10);
 	for(size_t i = 0; i < 10; ++i)
 		CHECK(rp->points[i] == float(i));
-}
-
-TEST_CASE("val bag")
-{
-	auto e = entity_new();
-	auto bag = mn::val_bag_new<Points>();
-	mn_defer(mn::val_bag_free(bag));
-
-	Points p{};
-	for(size_t i = 0; i < 10; ++i)
-		mn::buf_push(p.points, float(i));
-	
-	mn::val_bag_set(bag, e, p);
-
-	auto rp = mn::val_bag_get(bag, e);
-	CHECK(rp.points.count == 10);
-	for(size_t i = 0; i < 10; ++i)
-		CHECK(rp.points[i] == float(i));
 }
 
 TEST_CASE("uuid uniqueness")
@@ -1136,5 +1118,8 @@ TEST_CASE("json support")
 
 	auto [v, err] = mn::json::parse(json);
 	CHECK(err == false);
-	mn::print("{}", v);
+	auto v_str = str_tmpf("{}", v);
+	auto expected = R"""({"name":"my name is \"mostafa\"", "x":null, "y":true, "z":false, "w":213.123, "a":[1.0, false], "subobject":{"name":"subobject"}})""";
+	CHECK(v_str == expected);
+	mn::json::value_free(v);
 }

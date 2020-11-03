@@ -188,4 +188,10 @@ namespace mn::json
 
 	MN_EXPORT Result<Value>
 	parse(const Str& content);
+
+	inline static Result<Value>
+	parse(const char* content)
+	{
+		return parse(str_lit(content));
+	}
 }
