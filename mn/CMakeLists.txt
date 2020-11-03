@@ -49,6 +49,7 @@ set(HEADER_FILES
 	include/mn/RAD.h
 	include/mn/UUID.h
 	include/mn/SIMD.h
+	include/mn/Json.h
 	include/utf8proc/utf8proc.h
 )
 
@@ -75,6 +76,7 @@ set(SOURCE_FILES
 	src/mn/RAD.cpp
 	src/mn/ECS.cpp
 	src/mn/SIMD.cpp
+	src/mn/Json.cpp
 	src/utf8proc/utf8proc.cpp
 )
 

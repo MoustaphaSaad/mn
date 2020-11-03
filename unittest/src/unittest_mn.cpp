@@ -24,6 +24,7 @@
 #include <mn/ECS.h>
 #include <mn/UUID.h>
 #include <mn/SIMD.h>
+#include <mn/Json.h>
 
 #include <chrono>
 #include <iostream>
@@ -1113,4 +1114,27 @@ TEST_CASE("report simd")
 	mn::print("sse4a: {}\n", simd.sse4a_supportted);
 	mn::print("sse5: {}\n", simd.sse5_supportted);
 	mn::print("avx: {}\n", simd.avx_supportted);
+}
+
+TEST_CASE("json support")
+{
+	auto json = R"""(
+		{
+			"name": "my name is \"mostafa\"",
+			"x": null,
+			"y": true,
+			"z": false,
+			"w": 213.123,
+			"a": [
+				1, false
+			],
+			"subobject": {
+				"name": "subobject"
+			}
+		}
+	)""";
+
+	auto [v, err] = mn::json::parse(json);
+	CHECK(err == false);
+	mn::print("{}", v);
 }
