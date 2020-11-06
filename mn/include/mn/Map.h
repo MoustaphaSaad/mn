@@ -96,8 +96,8 @@ namespace mn
 	TRIVIAL_HASH(uint16_t);
 	TRIVIAL_HASH(uint32_t);
 	TRIVIAL_HASH(uint64_t);
-	#if defined(OS_MACOS)
-		TRIVIAL_HASH(size_t);
+	#if OS_MACOS
+		TRIVIAL_HASH(unsigned long);
 	#endif
 
 	#undef TRIVIAL_HASH
