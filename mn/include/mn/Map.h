@@ -96,7 +96,6 @@ namespace mn
 	TRIVIAL_HASH(uint16_t);
 	TRIVIAL_HASH(uint32_t);
 	TRIVIAL_HASH(uint64_t);
-	TRIVIAL_HASH(unsigned long);
 
 	#undef TRIVIAL_HASH
 
