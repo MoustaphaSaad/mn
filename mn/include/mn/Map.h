@@ -88,17 +88,15 @@ namespace mn
 
 	TRIVIAL_HASH(bool);
 	TRIVIAL_HASH(char);
-	TRIVIAL_HASH(int8_t);
-	TRIVIAL_HASH(int16_t);
-	TRIVIAL_HASH(int32_t);
-	TRIVIAL_HASH(int64_t);
-	TRIVIAL_HASH(uint8_t);
-	TRIVIAL_HASH(uint16_t);
-	TRIVIAL_HASH(uint32_t);
-	TRIVIAL_HASH(uint64_t);
-	#if defined(OS_MACOS)
-		TRIVIAL_HASH(std::size_t);
-	#endif
+	TRIVIAL_HASH(short);
+	TRIVIAL_HASH(int);
+	TRIVIAL_HASH(long);
+	TRIVIAL_HASH(long long);
+	TRIVIAL_HASH(unsigned char);
+	TRIVIAL_HASH(unsigned short);
+	TRIVIAL_HASH(unsigned int);
+	TRIVIAL_HASH(unsigned long);
+	TRIVIAL_HASH(unsigned long long);
 
 	#undef TRIVIAL_HASH
 
