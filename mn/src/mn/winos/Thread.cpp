@@ -150,7 +150,7 @@ namespace mn
 			return &map_lookup(self.shared, thread_id)->value;
 		default:
 			assert(false && "unreachable");
-			return false;
+			return nullptr;
 		}
 	}
 
