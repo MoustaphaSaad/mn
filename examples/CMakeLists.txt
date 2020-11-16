@@ -98,3 +98,15 @@ target_link_libraries(example-hot-reload-app
 	PRIVATE
 		MoustaphaSaad::mn
 )
+
+add_executable(example-deadlock example-deadlock.cpp)
+target_link_libraries(example-deadlock
+	PRIVATE
+		MoustaphaSaad::mn
+)
+
+add_executable(example-deadlock-recursive example-deadlock-recursive.cpp)
+target_link_libraries(example-deadlock-recursive
+	PRIVATE
+		MoustaphaSaad::mn
+)

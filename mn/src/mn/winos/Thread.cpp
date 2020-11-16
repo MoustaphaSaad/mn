@@ -259,6 +259,11 @@ namespace mn
 		EnterCriticalSection(&self->mtx.cs);
 		mn_defer(LeaveCriticalSection(&self->mtx.cs));
 
+		if (auto it = map_lookup(self->mutex_thread_owner, mtx))
+		{
+			panic("deadlock on mutex {} by thread #{}", mtx, thread_id);
+		}
+
 		map_remove(self->thread_mutex_block, thread_id);
 		map_insert(self->mutex_thread_owner, mtx, mutex_ownership_exclusive(thread_id));
 		#endif
