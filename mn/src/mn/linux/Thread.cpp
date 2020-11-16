@@ -380,7 +380,7 @@ namespace mn
 	void
 	mutex_lock(Mutex self)
 	{
-		if (pthread_mutex_trylock(&self->handle))
+		if (pthread_mutex_trylock(&self->handle) == 0)
 		{
 			_deadlock_detector_mutex_set_exclusive_owner(self);
 			return;
@@ -437,7 +437,7 @@ namespace mn
 	void
 	mutex_read_lock(Mutex_RW self)
 	{
-		if (pthread_rwlock_tryrdlock(&self->lock))
+		if (pthread_rwlock_tryrdlock(&self->lock) == 0)
 		{
 			_deadlock_detector_mutex_set_shared_owner(self);
 			return;
@@ -460,7 +460,7 @@ namespace mn
 	void
 	mutex_write_lock(Mutex_RW self)
 	{
-		if (pthread_rwlock_trywrlock(&self->lock))
+		if (pthread_rwlock_trywrlock(&self->lock) == 0)
 		{
 			_deadlock_detector_mutex_set_exclusive_owner(self);
 			return;
