@@ -194,7 +194,7 @@ if (MN_LEAK)
 	message(STATUS "feature: leak detector enabled")
 	target_compile_definitions(mn
 		PRIVATE
-			MN_LEAK=1
+			-DMN_LEAK=1
 	)
 	if(UNIX)
 		target_link_options(mn PUBLIC -rdynamic)
@@ -205,9 +205,17 @@ if (MN_POOL_DOUBLE_FREE)
 	message(STATUS "feature: pool double free check enabled")
 	target_compile_definitions(mn
 		PRIVATE
-			MN_POOL_DOUBLE_FREE=1
+			-DMN_POOL_DOUBLE_FREE=1
 	)
 endif (MN_POOL_DOUBLE_FREE)
+
+if (MN_DEADLOCK)
+	message(STATUS "feature: deadlock check enabled")
+	target_compile_definitions(mn
+		PRIVATE
+			-DMN_DEADLOCK=1
+	)
+endif (MN_DEADLOCK)
 
 # enable C++17
 # disable any compiler specifc extensions

@@ -6,6 +6,7 @@
 
 #include <pthread.h>
 #include <unistd.h>
+#include <sys/types.h>
 
 #include <assert.h>
 #include <chrono>
@@ -43,6 +44,281 @@ namespace mn
 		const char* name;
 	};
 
+	// Deadlock detector
+	struct Mutex_Thread_Owner
+	{
+		pid_t id;
+		int callstack_count;
+		void* callstack[20];
+	};
+
+	struct Mutex_Ownership
+	{
+		enum KIND
+		{
+			KIND_EXCLUSIVE,
+			KIND_SHARED,
+		};
+
+		KIND kind;
+		union
+		{
+			Mutex_Thread_Owner exclusive;
+			Map<pid_t, Mutex_Thread_Owner> shared;
+		};
+	};
+
+	inline static Mutex_Ownership
+	mutex_ownership_exclusive(pid_t thread_id)
+	{
+		Mutex_Ownership self{};
+		self.kind = Mutex_Ownership::KIND_EXCLUSIVE;
+		self.exclusive.id = thread_id;
+		self.exclusive.callstack_count = callstack_capture(self.exclusive.callstack, 20);
+		return self;
+	}
+
+	inline static Mutex_Ownership
+	mutex_ownership_shared()
+	{
+		Mutex_Ownership self{};
+		self.kind = Mutex_Ownership::KIND_SHARED;
+		return self;
+	}
+
+	inline static void
+	mutex_ownership_free(Mutex_Ownership& self)
+	{
+		switch(self.kind)
+		{
+		case Mutex_Ownership::KIND_EXCLUSIVE:
+			// do nothing
+			break;
+		case Mutex_Ownership::KIND_SHARED:
+			map_free(self.shared);
+			break;
+		default:
+			assert(false && "unreachable");
+			break;
+		}
+	}
+
+	inline static void
+	destruct(Mutex_Ownership& self)
+	{
+		mutex_ownership_free(self);
+	}
+
+	inline static void
+	mutex_ownership_shared_add_owner(Mutex_Ownership& self, pid_t thread_id)
+	{
+		Mutex_Thread_Owner owner{};
+		owner.id = thread_id;
+		owner.callstack_count = callstack_capture(owner.callstack, 20);
+		map_insert(self.shared, thread_id, owner);
+	}
+
+	inline static void
+	mutex_ownership_shared_remove_owner(Mutex_Ownership& self, pid_t thread_id)
+	{
+		map_remove(self.shared, thread_id);
+	}
+
+	inline static bool
+	mutex_ownership_check(Mutex_Ownership& self, pid_t thread_id)
+	{
+		switch(self.kind)
+		{
+		case Mutex_Ownership::KIND_EXCLUSIVE:
+			return self.exclusive.id == thread_id;
+		case Mutex_Ownership::KIND_SHARED:
+			return map_lookup(self.shared, thread_id) != nullptr;
+		default:
+			assert(false && "unreachable");
+			return false;
+		}
+	}
+
+	inline static Mutex_Thread_Owner*
+	mutex_ownership_get_owner(Mutex_Ownership& self, pid_t thread_id)
+	{
+		switch(self.kind)
+		{
+		case Mutex_Ownership::KIND_EXCLUSIVE:
+			return &self.exclusive;
+		case Mutex_Ownership::KIND_SHARED:
+			return &map_lookup(self.shared, thread_id)->value;
+		default:
+			assert(false && "unreachable");
+			return false;
+		}
+	}
+
+	struct Deadlock_Detector
+	{
+		pthread_mutex_t mtx;
+		Map<void*, Mutex_Ownership> mutex_thread_owner;
+		Map<pid_t, void*> thread_mutex_block;
+
+		Deadlock_Detector()
+		{
+			pthread_mutex_init(&mtx, NULL);
+			mutex_thread_owner = map_new<void*, Mutex_Ownership>();
+			thread_mutex_block = map_new<pid_t, void*>();
+		}
+
+		~Deadlock_Detector()
+		{
+			pthread_mutex_destroy(&mtx);
+			destruct(mutex_thread_owner);
+			map_free(thread_mutex_block);
+		}
+	};
+
+	inline static Deadlock_Detector*
+	_deadlock_detector()
+	{
+		static Deadlock_Detector _detector;
+		return &_detector;
+	}
+
+	inline static bool
+	_deadlock_detector_has_block_loop(Deadlock_Detector* self, void* mtx, pid_t thread_id)
+	{
+		auto it = map_lookup(self->mutex_thread_owner, mtx);
+		if (it == nullptr)
+			return false;
+
+		bool deadlock_detected = false;
+		if (mutex_ownership_check(it->value, thread_id))
+		{
+			deadlock_detected = true;
+		}
+		else
+		{
+			switch(it->value.kind)
+			{
+			case Mutex_Ownership::KIND_EXCLUSIVE:
+				if (auto block_it = map_lookup(self->thread_mutex_block, it->value.exclusive.id))
+					deadlock_detected = _deadlock_detector_has_block_loop(self, block_it->value, thread_id);
+				break;
+			case Mutex_Ownership::KIND_SHARED:
+				for (auto [id, owner]: it->value.shared)
+				{
+					if (auto block_it = map_lookup(self->thread_mutex_block, id))
+					{
+						if (_deadlock_detector_has_block_loop(self, block_it->value, thread_id))
+						{
+							deadlock_detected = true;
+							break;
+						}
+					}
+				}
+				break;
+			default:
+				assert(false && "unreachable");
+				break;
+			}
+		}
+
+		if (deadlock_detected)
+		{
+			auto owner = mutex_ownership_get_owner(it->value, thread_id);
+			mn::printerr("Mutex {} was locked by thread #{} at:\n", mtx, owner->id);
+			callstack_print_to(owner->callstack, owner->callstack_count, file_stderr());
+			mn::printerr("\n");
+			return true;
+		}
+		return false;
+	}
+
+	inline static void
+	_deadlock_detector_mutex_block(void* mtx)
+	{
+		#ifdef MN_DEADLOCK
+		auto self = _deadlock_detector();
+		auto thread_id = gettid();
+
+		pthread_mutex_lock(&self->mtx.);
+		mn_defer(pthread_mutex_unlock(&self->mtx));
+
+		map_insert(self->thread_mutex_block, thread_id, mtx);
+		if (_deadlock_detector_has_block_loop(self, mtx, thread_id))
+			panic("deadlock on mutex {} by thread #{}", mtx, thread_id);
+		#endif
+	}
+
+	inline static void
+	_deadlock_detector_mutex_set_exclusive_owner(void* mtx)
+	{
+		#ifdef MN_DEADLOCK
+		auto self = _deadlock_detector();
+		auto thread_id = gettid();
+
+		pthread_mutex_lock(&self->mtx);
+		mn_defer(pthread_mutex_unlock(&self->mtx));
+
+		map_remove(self->thread_mutex_block, thread_id);
+		map_insert(self->mutex_thread_owner, mtx, mutex_ownership_exclusive(thread_id));
+		#endif
+	}
+
+	inline static void
+	_deadlock_detector_mutex_set_shared_owner(void* mtx)
+	{
+		#ifdef MN_DEADLOCK
+		auto self = _deadlock_detector();
+		auto thread_id = gettid();
+
+		pthread_mutex_lock(&self->mtx);
+		mn_defer(pthread_mutex_unlock(&self->mtx));
+
+		map_remove(self->thread_mutex_block, thread_id);
+		if (auto it = map_lookup(self->mutex_thread_owner, mtx))
+		{
+			mutex_ownership_shared_add_owner(it->value, thread_id);
+		}
+		else
+		{
+			auto mutex_ownership = mutex_ownership_shared();
+			mutex_ownership_shared_add_owner(mutex_ownership, thread_id);
+			map_insert(self->mutex_thread_owner, mtx, mutex_ownership);
+		}
+		#endif
+	}
+
+	inline static void
+	_deadlock_detector_mutex_unset_owner(void* mtx)
+	{
+		#ifdef MN_DEADLOCK
+		auto self = _deadlock_detector();
+		auto thread_id = gettid();
+
+		pthread_mutex_lock(&self->mtx);
+		mn_defer(pthread_mutex_unlock(&self->mtx));
+
+		auto it = map_lookup(self->mutex_thread_owner, mtx);
+		switch(it->value.kind)
+		{
+		case Mutex_Ownership::KIND_EXCLUSIVE:
+			map_remove(self->mutex_thread_owner, mtx);
+			break;
+		case Mutex_Ownership::KIND_SHARED:
+			mutex_ownership_shared_remove_owner(it->value, thread_id);
+			if (it->value.shared.count == 0)
+			{
+				mutex_ownership_free(it->value);
+				map_remove(self->mutex_thread_owner, mtx);
+			}
+			break;
+		default:
+			assert(false && "unreachable");
+			break;
+		}
+		#endif
+	}
+
+	// API
 	Mutex
 	mutex_new(const char* name)
 	{
@@ -56,15 +332,24 @@ namespace mn
 	void
 	mutex_lock(Mutex self)
 	{
+		if (pthread_mutex_trylock(&self->handle))
+		{
+			_deadlock_detector_mutex_set_exclusive_owner(self);
+			return;
+		}
+
 		worker_block_ahead();
+		_deadlock_detector_mutex_block(self);
 		[[maybe_unused]] int result = pthread_mutex_lock(&self->handle);
 		assert(result == 0);
+		_deadlock_detector_mutex_set_exclusive_owner(self);
 		worker_block_clear();
 	}
 
 	void
 	mutex_unlock(Mutex self)
 	{
+		_deadlock_detector_mutex_unset_owner(self);
 		[[maybe_unused]] int result = pthread_mutex_unlock(&self->handle);
 		assert(result == 0);
 	}
@@ -104,28 +389,46 @@ namespace mn
 	void
 	mutex_read_lock(Mutex_RW self)
 	{
+		if (pthread_rwlock_tryrdlock(&self->lock))
+		{
+			_deadlock_detector_mutex_set_shared_owner(self);
+			return;
+		}
+
 		worker_block_ahead();
+		_deadlock_detector_mutex_block(self);
 		pthread_rwlock_rdlock(&self->lock);
+		_deadlock_detector_mutex_set_shared_owner(self);
 		worker_block_clear();
 	}
 
 	void
 	mutex_read_unlock(Mutex_RW self)
 	{
+		_deadlock_detector_mutex_unset_owner(self);
 		pthread_rwlock_unlock(&self->lock);
 	}
 
 	void
 	mutex_write_lock(Mutex_RW self)
 	{
+		if (pthread_rwlock_trywrlock(&self->lock))
+		{
+			_deadlock_detector_mutex_set_exclusive_owner(self);
+			return;
+		}
+
 		worker_block_ahead();
+		_deadlock_detector_mutex_block(self);
 		pthread_rwlock_wrlock(&self->lock);
+		_deadlock_detector_mutex_set_exclusive_owner(self);
 		worker_block_clear();
 	}
 
 	void
 	mutex_write_unlock(Mutex_RW self)
 	{
+		_deadlock_detector_mutex_unset_owner(self);
 		pthread_rwlock_unlock(&self->lock);
 	}
 
@@ -217,7 +520,9 @@ namespace mn
 	cond_var_wait(Cond_Var self, Mutex mtx)
 	{
 		worker_block_ahead();
+		_deadlock_detector_mutex_unset_owner(mtx);
 		pthread_cond_wait(&self->cv, &mtx->handle);
+		_deadlock_detector_mutex_set_exclusive_owner(mtx);
 		worker_block_clear();
 	}
 
@@ -228,7 +533,9 @@ namespace mn
 		ms2ts(&ts, millis);
 
 		worker_block_ahead();
+		_deadlock_detector_mutex_unset_owner(mtx);
 		auto res = pthread_cond_timedwait(&self->cv, &mtx->handle, &ts);
+		_deadlock_detector_mutex_set_exclusive_owner(mtx);
 		worker_block_clear();
 
 		if (res == 0)

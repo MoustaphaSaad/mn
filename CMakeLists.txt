@@ -18,6 +18,7 @@ option(MN_BUILD_EXAMPLES   "Build example applications that showcase the mn libr
 option(MN_BUILD_TESTS      "Build mn unit tests."                                     ON)
 option(MN_UNITY_BUILD      "Combine all mn source files into one jumbo build."        ON)
 option(MN_LEAK             "Enables mn memory leak detection"                         OFF)
+option(MN_DEADLOCK         "Enables mn deadlock detection"                            OFF)
 option(MN_POOL_DOUBLE_FREE "Enables mn pool double free check"                        OFF)
 option(MN_SHARED           "Forces mn to build as a shared library"                   ON)
 

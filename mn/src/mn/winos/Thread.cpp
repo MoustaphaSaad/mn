@@ -236,6 +236,7 @@ namespace mn
 	inline static void
 	_deadlock_detector_mutex_block(void* mtx)
 	{
+		#ifdef MN_DEADLOCK
 		auto self = _deadlock_detector();
 		auto thread_id = GetCurrentThreadId();
 
@@ -245,11 +246,13 @@ namespace mn
 		map_insert(self->thread_mutex_block, thread_id, mtx);
 		if (_deadlock_detector_has_block_loop(self, mtx, thread_id))
 			panic("deadlock on mutex {} by thread #{}", mtx, thread_id);
+		#endif
 	}
 
 	inline static void
 	_deadlock_detector_mutex_set_exclusive_owner(void* mtx)
 	{
+		#ifdef MN_DEADLOCK
 		auto self = _deadlock_detector();
 		auto thread_id = GetCurrentThreadId();
 
@@ -258,11 +261,13 @@ namespace mn
 
 		map_remove(self->thread_mutex_block, thread_id);
 		map_insert(self->mutex_thread_owner, mtx, mutex_ownership_exclusive(thread_id));
+		#endif
 	}
 
 	inline static void
 	_deadlock_detector_mutex_set_shared_owner(void* mtx)
 	{
+		#ifdef MN_DEADLOCK
 		auto self = _deadlock_detector();
 		auto thread_id = GetCurrentThreadId();
 
@@ -280,11 +285,13 @@ namespace mn
 			mutex_ownership_shared_add_owner(mutex_ownership, thread_id);
 			map_insert(self->mutex_thread_owner, mtx, mutex_ownership);
 		}
+		#endif
 	}
 
 	inline static void
 	_deadlock_detector_mutex_unset_owner(void* mtx)
 	{
+		#ifdef MN_DEADLOCK
 		auto self = _deadlock_detector();
 		auto thread_id = GetCurrentThreadId();
 
@@ -309,6 +316,7 @@ namespace mn
 			assert(false && "unreachable");
 			break;
 		}
+		#endif
 	}
 
 	// API
