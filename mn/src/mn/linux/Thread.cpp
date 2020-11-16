@@ -254,7 +254,7 @@ namespace mn
 		auto self = _deadlock_detector();
 		auto thread_id = gettid();
 
-		pthread_mutex_lock(&self->mtx.);
+		pthread_mutex_lock(&self->mtx);
 		mn_defer(pthread_mutex_unlock(&self->mtx));
 
 		map_insert(self->thread_mutex_block, thread_id, mtx);
