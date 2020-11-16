@@ -49,7 +49,7 @@ namespace mn
 		if (EnumProcessModules(libs[0], NULL, 0, &bytes_needed))
 		{
 			buf_resize(libs, bytes_needed/sizeof(HMODULE) + libs.count);
-			if (EnumProcessModules(libs[0], (HMODULE*)(libs.ptr + 1), bytes_needed, NULL) == FALSE)
+			if (EnumProcessModules(libs[0], (HMODULE*)(libs.ptr + 1), bytes_needed, &bytes_needed) == FALSE)
 			{
 				// reset it back to 1 we have failed
 				buf_resize(libs, 1);
