@@ -3,6 +3,9 @@
 #include "mn/Memory.h"
 #include "mn/OS.h"
 #include "mn/Fabric.h"
+#include "mn/Defer.h"
+#include "mn/Debug.h"
+#include "mn/Log.h"
 
 #include <pthread.h>
 #include <unistd.h>
@@ -50,6 +53,12 @@ namespace mn
 		pid_t id;
 		int callstack_count;
 		void* callstack[20];
+	};
+
+	struct Mutex_Deadlock_Reason
+	{
+		void* mtx;
+		Mutex_Thread_Owner* owner;
 	};
 
 	struct Mutex_Ownership
@@ -183,13 +192,14 @@ namespace mn
 	}
 
 	inline static bool
-	_deadlock_detector_has_block_loop(Deadlock_Detector* self, void* mtx, pid_t thread_id)
+	_deadlock_detector_has_block_loop(Deadlock_Detector* self, void* mtx, pid_t thread_id, Buf<Mutex_Deadlock_Reason>& reasons)
 	{
 		auto it = map_lookup(self->mutex_thread_owner, mtx);
 		if (it == nullptr)
 			return false;
 
 		bool deadlock_detected = false;
+		auto reason_thread_id = thread_id;
 		if (mutex_ownership_check(it->value, thread_id))
 		{
 			deadlock_detected = true;
@@ -200,16 +210,20 @@ namespace mn
 			{
 			case Mutex_Ownership::KIND_EXCLUSIVE:
 				if (auto block_it = map_lookup(self->thread_mutex_block, it->value.exclusive.id))
-					deadlock_detected = _deadlock_detector_has_block_loop(self, block_it->value, thread_id);
+				{
+					deadlock_detected = _deadlock_detector_has_block_loop(self, block_it->value, thread_id, reasons);
+					reason_thread_id = it->value.exclusive.id;
+				}
 				break;
 			case Mutex_Ownership::KIND_SHARED:
 				for (auto [id, owner]: it->value.shared)
 				{
 					if (auto block_it = map_lookup(self->thread_mutex_block, id))
 					{
-						if (_deadlock_detector_has_block_loop(self, block_it->value, thread_id))
+						if (_deadlock_detector_has_block_loop(self, block_it->value, thread_id, reasons))
 						{
 							deadlock_detected = true;
+							reason_thread_id = block_it->key;
 							break;
 						}
 					}
@@ -223,10 +237,11 @@ namespace mn
 
 		if (deadlock_detected)
 		{
-			auto owner = mutex_ownership_get_owner(it->value, thread_id);
-			mn::printerr("Mutex {} was locked by thread #{} at:\n", mtx, owner->id);
-			callstack_print_to(owner->callstack, owner->callstack_count, file_stderr());
-			mn::printerr("\n");
+			auto owner = mutex_ownership_get_owner(it->value, reason_thread_id);
+			Mutex_Deadlock_Reason reason{};
+			reason.mtx = it->key;
+			reason.owner = owner;
+			buf_push(reasons, reason);
 			return true;
 		}
 		return false;
@@ -243,8 +258,36 @@ namespace mn
 		mn_defer(pthread_mutex_unlock(&self->mtx));
 
 		map_insert(self->thread_mutex_block, thread_id, mtx);
-		if (_deadlock_detector_has_block_loop(self, mtx, thread_id))
-			panic("deadlock on mutex {} by thread #{}", mtx, thread_id);
+
+		Buf<Mutex_Deadlock_Reason> reasons{};
+		if (_deadlock_detector_has_block_loop(self, mtx, thread_id, reasons))
+		{
+			log_error("Deadlock on mutex {} by thread #{} because of #{} reasons are listed below:", mtx, thread_id, reasons.count);
+			void* callstack[20];
+			auto callstack_count = callstack_capture(callstack, 20);
+			callstack_print_to(callstack, callstack_count, file_stderr());
+			printerr("\n");
+
+			for (size_t i = 0; i < reasons.count; ++i)
+			{
+				auto ix = reasons.count - i - 1;
+				auto reason = reasons[ix];
+
+				auto block_it = map_lookup(self->thread_mutex_block, reason.owner->id);
+				log_error(
+					"reason #{}: Mutex {} was locked at the callstack listed below by thread #{} (while it was waiting for mutex {} to be released):",
+					ix + 1,
+					reason.mtx,
+					reason.owner->id,
+					block_it->value
+				);
+				callstack_print_to(reason.owner->callstack, reason.owner->callstack_count, file_stderr());
+				printerr("\n");
+			}
+			::exit(-1);
+		}
+		buf_free(reasons);
+
 		#endif
 	}
 
@@ -257,6 +300,11 @@ namespace mn
 
 		pthread_mutex_lock(&self->mtx);
 		mn_defer(pthread_mutex_unlock(&self->mtx));
+
+		if (auto it = map_lookup(self->mutex_thread_owner, mtx))
+		{
+			panic("Deadlock on mutex {} by thread #{}", mtx, thread_id);
+		}
 
 		map_remove(self->thread_mutex_block, thread_id);
 		map_insert(self->mutex_thread_owner, mtx, mutex_ownership_exclusive(thread_id));
