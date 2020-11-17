@@ -92,6 +92,7 @@ namespace mn
 	{
 		Mutex_Ownership self{};
 		self.kind = Mutex_Ownership::KIND_SHARED;
+		self.shared = map_with_allocator<pid_t, Mutex_Thread_Owner>(memory::clib());
 		return self;
 	}
 
@@ -172,8 +173,8 @@ namespace mn
 		Deadlock_Detector()
 		{
 			pthread_mutex_init(&mtx, NULL);
-			mutex_thread_owner = map_new<void*, Mutex_Ownership>();
-			thread_mutex_block = map_new<pid_t, void*>();
+			mutex_thread_owner = map_with_allocator<void*, Mutex_Ownership>(memory::clib());
+			thread_mutex_block = map_with_allocator<pid_t, void*>(memory::clib());
 		}
 
 		~Deadlock_Detector()
