@@ -35,6 +35,7 @@ namespace mn
 		std::atomic<uint64_t> atomic_job_start_time_in_ms;
 		std::atomic<uint64_t> atomic_block_start_time_in_ms;
 		std::atomic<STATE> atomic_state;
+		std::atomic<bool> atomic_disable_block_timing;
 	};
 	thread_local Worker LOCAL_WORKER = nullptr;
 
@@ -93,7 +94,9 @@ namespace mn
 				if (job)
 				{
 					self->atomic_job_start_time_in_ms.store(time_in_millis());
+					self->atomic_disable_block_timing = false;
 					job();
+					self->atomic_disable_block_timing = true;
 					self->atomic_job_start_time_in_ms.store(0);
 					task_free(job);
 					memory::tmp()->clear_all();
@@ -176,6 +179,7 @@ namespace mn
 		self->fabric = fabric;
 		self->job_q = stolen_jobs;
 		self->atomic_state = IWorker::STATE_RUNNING;
+		self->atomic_disable_block_timing = true;
 		self->thread = thread_new(_worker_main, self, self->name.ptr);
 		return self;
 	}
@@ -460,6 +464,10 @@ namespace mn
 	{
 		if (LOCAL_WORKER == nullptr)
 			return;
+
+		if (LOCAL_WORKER->atomic_disable_block_timing.load() == true)
+			return;
+
 		LOCAL_WORKER->atomic_block_start_time_in_ms.store(time_in_millis());
 	}
 
@@ -468,6 +476,10 @@ namespace mn
 	{
 		if (LOCAL_WORKER == nullptr)
 			return;
+
+		if (LOCAL_WORKER->atomic_disable_block_timing.load() == true)
+			return;
+
 		LOCAL_WORKER->atomic_block_start_time_in_ms.store(0);
 	}
 
