@@ -2,6 +2,7 @@
 #include "mn/Memory.h"
 #include "mn/Pool.h"
 #include "mn/Buf.h"
+#include "mn/Log.h"
 
 #include <atomic>
 #include <chrono>
@@ -33,7 +34,7 @@ namespace mn
 		Thread thread;
 		std::atomic<uint64_t> atomic_job_start_time_in_ms;
 		std::atomic<uint64_t> atomic_block_start_time_in_ms;
-		STATE state;
+		std::atomic<STATE> atomic_state;
 	};
 	thread_local Worker LOCAL_WORKER = nullptr;
 
@@ -52,6 +53,7 @@ namespace mn
 		bool is_running;
 		std::atomic<size_t> atomic_available_jobs;
 		size_t next_worker;
+		size_t worker_id_generator;
 
 		Thread sysmon;
 	};
@@ -64,51 +66,59 @@ namespace mn
 
 		while(true)
 		{
-			mutex_lock(self->mtx);
-
-			if (self->state == IWorker::STATE_RUNNING)
+			auto state = self->atomic_state.load();
+			if (state == IWorker::STATE_RUNNING)
 			{
-				if (self->job_q.count == 0)
+				Job job{};
+				{
+					mutex_lock(self->mtx);
+					mn_defer(mutex_unlock(self->mtx));
+
+					if (self->job_q.count == 0)
+					{
+						cond_var_wait(self->cv, self->mtx, [&]{
+							return self->job_q.count > 0 ||
+								self->atomic_state.load() != IWorker::STATE_RUNNING;
+						});
+						state = self->atomic_state.load();
+					}
+
+					if (state != IWorker::STATE_RUNNING)
+						continue;
+
+					job = ring_front(self->job_q);
+					ring_pop_front(self->job_q);
+				}
+
+				if (job)
+				{
+					self->atomic_job_start_time_in_ms.store(time_in_millis());
+					job();
+					self->atomic_job_start_time_in_ms.store(0);
+					task_free(job);
+					memory::tmp()->clear_all();
+					if (self->fabric)
+					{
+						if (self->fabric->settings.after_each_job)
+							self->fabric->settings.after_each_job();
+						self->fabric->atomic_available_jobs.fetch_sub(1);
+					}
+				}
+			}
+			else if (state == IWorker::STATE_PAUSED)
+			{
+				mutex_lock(self->mtx);
+				mn_defer(mutex_unlock(self->mtx));
+
+				if (self->atomic_state.load() == IWorker::STATE_PAUSED)
 				{
 					cond_var_wait(self->cv, self->mtx, [&]{
-						return self->job_q.count > 0 ||
-							self->state != IWorker::STATE_RUNNING;
+						return self->atomic_state.load() != IWorker::STATE_PAUSED;
 					});
 				}
-
-				if (self->state != IWorker::STATE_RUNNING)
-				{
-					mutex_unlock(self->mtx);
-					continue;
-				}
-
-				auto job = ring_front(self->job_q);
-				ring_pop_front(self->job_q);
-
-				mutex_unlock(self->mtx);
-
-				self->atomic_job_start_time_in_ms.store(time_in_millis());
-				job();
-				self->atomic_job_start_time_in_ms.store(0);
-				task_free(job);
-				memory::tmp()->clear_all();
-				if (self->fabric)
-				{
-					if (self->fabric->settings.after_each_job)
-						self->fabric->settings.after_each_job();
-					self->fabric->atomic_available_jobs.fetch_sub(1);
-				}
 			}
-			else if (self->state == IWorker::STATE_PAUSED)
+			else if (state == IWorker::STATE_STOP_REQUEST)
 			{
-				cond_var_wait(self->cv, self->mtx, [&]{
-					return self->state != IWorker::STATE_PAUSED;
-				});
-				mutex_unlock(self->mtx);
-			}
-			else if (self->state == IWorker::STATE_STOP_REQUEST)
-			{
-				mutex_unlock(self->mtx);
 				break;
 			}
 			else
@@ -117,7 +127,8 @@ namespace mn
 			}
 		}
 
-		self->state = IWorker::STATE_STOP_ACKNOWLEDGED;
+		auto old_state = self->atomic_state.exchange(IWorker::STATE_STOP_ACKNOWLEDGED);
+		assert(old_state == IWorker::STATE_STOP_REQUEST);
 		LOCAL_WORKER = nullptr;
 	}
 
@@ -127,13 +138,7 @@ namespace mn
 		mutex_lock(self->mtx);
 		mn_defer(mutex_unlock(self->mtx));
 
-		if (self->state == IWorker::STATE_STOP_REQUEST ||
-			self->state == IWorker::STATE_STOP_ACKNOWLEDGED)
-		{
-			return;
-		}
-
-		self->state = IWorker::STATE_STOP_REQUEST;
+		self->atomic_state = IWorker::STATE_STOP_REQUEST;
 		cond_var_notify(self->cv);
 	}
 
@@ -143,12 +148,9 @@ namespace mn
 		mutex_lock(self->mtx);
 		mn_defer(mutex_unlock(self->mtx));
 
-		if (self->state == IWorker::STATE_PAUSED)
-			return;
+		assert(self->atomic_state == IWorker::STATE_RUNNING);
 
-		assert(self->state == IWorker::STATE_RUNNING);
-
-		self->state = IWorker::STATE_PAUSED;
+		self->atomic_state = IWorker::STATE_PAUSED;
 		cond_var_notify(self->cv);
 	}
 
@@ -158,12 +160,9 @@ namespace mn
 		mutex_lock(self->mtx);
 		mn_defer(mutex_unlock(self->mtx));
 
-		if (self->state == IWorker::STATE_RUNNING)
-			return;
+		assert(self->atomic_state == IWorker::STATE_PAUSED);
 
-		assert(self->state == IWorker::STATE_PAUSED);
-
-		self->state = IWorker::STATE_RUNNING;
+		self->atomic_state = IWorker::STATE_RUNNING;
 		cond_var_notify(self->cv);
 	}
 
@@ -176,7 +175,7 @@ namespace mn
 		self->cv = cond_var_new();
 		self->fabric = fabric;
 		self->job_q = stolen_jobs;
-		self->state = IWorker::STATE_RUNNING;
+		self->atomic_state = IWorker::STATE_RUNNING;
 		self->thread = thread_new(_worker_main, self, self->name.ptr);
 		return self;
 	}
@@ -184,8 +183,9 @@ namespace mn
 	inline static void
 	_worker_free(Worker self)
 	{
-		assert(self->state == IWorker::STATE_STOP_REQUEST ||
-			   self->state == IWorker::STATE_STOP_ACKNOWLEDGED);
+		auto state = self->atomic_state.load();
+		assert(state == IWorker::STATE_STOP_REQUEST ||
+			   state == IWorker::STATE_STOP_ACKNOWLEDGED);
 
 		thread_join(self->thread);
 		thread_free(self->thread);
@@ -213,6 +213,12 @@ namespace mn
 		auto blocking_workers = buf_with_capacity<Blocking_Worker>(self->workers.count);
 		mn_defer(buf_free(blocking_workers));
 
+		auto dead_workers = buf_with_capacity<Worker>(self->workers.count);
+		mn_defer(destruct(dead_workers));
+
+		auto tmp_jobs = buf_new<Job>();
+		mn_defer(destruct(tmp_jobs));
+
 		auto timeslice = self->settings.coop_blocking_threshold_in_ms;
 		if (timeslice > self->settings.external_blocking_threshold_in_ms)
 			timeslice = self->settings.external_blocking_threshold_in_ms;
@@ -223,21 +229,35 @@ namespace mn
 
 		while(true)
 		{
-			mutex_lock(self->mtx);
-			mn_defer(mutex_unlock(self->mtx));
+			// dispose of dead workers before holding the mutex
+			buf_remove_if(dead_workers, [](Worker worker){
+				auto state = worker->atomic_state.load();
 
-			if (self->atomic_available_jobs.load() == 0 &&
-				self->sleepy_side_workers.count == 0)
+				if (state == IWorker::STATE_STOP_REQUEST)
+					return false;
+
+				assert(state == IWorker::STATE_STOP_ACKNOWLEDGED);
+				_worker_free(worker);
+				return true;
+			});
+
 			{
-				cond_var_wait_timeout(self->cv, self->mtx, timeslice, [&]{
-					return self->atomic_available_jobs.load() > 0 ||
-						   self->is_running == false ||
-						   self->sleepy_side_workers.count > 0;
-				});
-			}
+				mutex_lock(self->mtx);
+				mn_defer(mutex_unlock(self->mtx));
 
-			if (self->is_running == false)
-				return;
+				if (self->atomic_available_jobs.load() == 0 &&
+					self->sleepy_side_workers.count == 0)
+				{
+					cond_var_wait_timeout(self->cv, self->mtx, timeslice, [&]{
+						return self->atomic_available_jobs.load() > 0 ||
+							self->is_running == false ||
+							self->sleepy_side_workers.count > 0;
+					});
+				}
+
+				if (self->is_running == false)
+					return;
+			}
 
 			// get the max/min jobs
 			size_t worker_with_most_jobs = 0;
@@ -267,32 +287,41 @@ namespace mn
 			// steal from the max jobs and give to min jobs
 			if (max_jobs > min_jobs && min_jobs == 0 && max_jobs > 1)
 			{
-				auto max_worker = self->workers[worker_with_most_jobs];
-				auto min_worker = self->workers[worker_with_least_jobs];
-
-				mutex_lock(max_worker->mtx);
-				mn_defer(mutex_unlock(max_worker->mtx));
-
-				mutex_lock(min_worker->mtx);
-				mn_defer(mutex_unlock(min_worker->mtx));
-
-				max_jobs = max_worker->job_q.count;
-				auto job_steal_count = max_jobs / 2;
-
-				for (size_t i = 0; i < job_steal_count; ++i)
 				{
-					auto job = ring_back(max_worker->job_q);
-					ring_pop_back(max_worker->job_q);
+					auto max_worker = self->workers[worker_with_most_jobs];
 
-					ring_push_back(min_worker->job_q, job);
+					mutex_lock(max_worker->mtx);
+					mn_defer(mutex_unlock(max_worker->mtx));
+
+					max_jobs = max_worker->job_q.count;
+					auto job_steal_count = max_jobs / 2;
+
+					for (size_t i = 0; i < job_steal_count; ++i)
+					{
+						auto job = ring_back(max_worker->job_q);
+						ring_pop_back(max_worker->job_q);
+
+						buf_push(tmp_jobs, job);
+					}
 				}
 
-				cond_var_notify(min_worker->cv);
+				{
+					auto min_worker = self->workers[worker_with_least_jobs];
+
+					mutex_lock(min_worker->mtx);
+					mn_defer(mutex_unlock(min_worker->mtx));
+
+					for (auto job: tmp_jobs)
+						ring_push_back(min_worker->job_q, job);
+					buf_clear(tmp_jobs);
+
+					cond_var_notify(min_worker->cv);
+				}
 			}
 
-			// first check if any sleepy worker is ready and move it either to the ready workers list
+			// check if any sleepy worker is ready and move it either to the ready workers list
 			// or free it because we don't really need it
-			buf_remove_if(self->sleepy_side_workers, [self](Worker worker) {
+			buf_remove_if(self->sleepy_side_workers, [self, &dead_workers](Worker worker) {
 				if (worker->atomic_job_start_time_in_ms.load() == 0)
 				{
 					if (self->ready_side_workers.count < self->settings.put_aside_worker_count)
@@ -302,7 +331,7 @@ namespace mn
 					else
 					{
 						_worker_stop(worker);
-						_worker_free(worker);
+						buf_push(dead_workers, worker);
 					}
 					return true;
 				}
@@ -347,30 +376,41 @@ namespace mn
 			// move the blocking workers out
 			for (auto blocking_worker: blocking_workers)
 			{
-				mutex_lock(blocking_worker.worker->mtx);
-				mn_defer(mutex_lock(blocking_worker.worker->mtx));
-
-				// find a suitable worker
-				if (self->ready_side_workers.count > 0)
+				Ring<Job> job_q{};
 				{
-					auto new_worker = buf_top(self->ready_side_workers);
-					buf_pop(self->ready_side_workers);
+					mutex_lock(blocking_worker.worker->mtx);
+					mn_defer(mutex_unlock(blocking_worker.worker->mtx));
 
-					self->workers[blocking_worker.index] = new_worker;
-					std::swap(blocking_worker.worker->job_q, new_worker->job_q);
-
-					_worker_resume(new_worker);
+					job_q = blocking_worker.worker->job_q;
+					blocking_worker.worker->job_q = ring_new<Job>();
 				}
-				else
-				{
-					auto new_worker = _worker_new(
-						strf("{} worker thread", self->name),
-						self,
-						blocking_worker.worker->job_q
-					);
 
-					self->workers[blocking_worker.index] = new_worker;
-					blocking_worker.worker->job_q = ring_new<Task<void()>>();
+				{
+					mutex_lock(self->mtx);
+					mn_defer(mutex_unlock(self->mtx));
+
+					// find a suitable worker
+					if (self->ready_side_workers.count > 0)
+					{
+						auto new_worker = buf_top(self->ready_side_workers);
+						buf_pop(self->ready_side_workers);
+
+						self->workers[blocking_worker.index] = new_worker;
+						ring_free(new_worker->job_q);
+						new_worker->job_q = job_q;
+
+						_worker_resume(new_worker);
+					}
+					else
+					{
+						auto new_worker = _worker_new(
+							strf("{} worker #{}", self->name, self->worker_id_generator++),
+							self,
+							job_q
+						);
+
+						self->workers[blocking_worker.index] = new_worker;
+					}
 				}
 			}
 
@@ -461,11 +501,12 @@ namespace mn
 		self->is_running = true;
 		self->atomic_available_jobs = 0;
 		self->next_worker = 0;
+		self->worker_id_generator = 0;
 
 		for (size_t i = 0; i < self->workers.count; ++i)
 		{
 			self->workers[i] = _worker_new(
-				strf("{} worker #{}", self->name, i),
+				strf("{} worker #{}", self->name, self->worker_id_generator++),
 				self
 			);
 		}
