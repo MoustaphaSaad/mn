@@ -115,18 +115,15 @@ namespace mn
 		fabric_free(self);
 	}
 
-	// fabric_worker_next gets the next worker to push the task into, it uses round robin technique
-	MN_EXPORT Worker
-	fabric_worker_next(Fabric self);
-
-	MN_EXPORT Worker
-	fabric_steal_next(Fabric self);
+	// fabric_task_do adds a task to the fabric
+	MN_EXPORT void
+	fabric_task_do(Fabric self, const Task<void()>& task);
 
 	template<typename TFunc>
 	inline static void
 	fabric_do(Fabric self, TFunc&& f)
 	{
-		worker_task_do(fabric_worker_next(self), Task<void()>::make(std::forward<TFunc>(f)));
+		fabric_task_do(self, Task<void()>::make(std::forward<TFunc>(f)));
 	}
 
 	MN_EXPORT Fabric
@@ -157,7 +154,7 @@ namespace mn
 	inline static void
 	go(Fabric f, TFunc&& fn)
 	{
-		worker_task_do(fabric_worker_next(f), Task<void()>::make(std::forward<TFunc>(fn)));
+		fabric_task_do(f, Task<void()>::make(std::forward<TFunc>(fn)));
 	}
 
 	template<typename TFunc>
@@ -171,12 +168,12 @@ namespace mn
 	inline static void
 	go(TFunc&& fn)
 	{
-		Worker w = nullptr;
 		if (Fabric f = fabric_local())
-			w = fabric_worker_next(f);
+			fabric_task_do(f, Task<void()>::make(std::forward<TFunc>(fn)));
+		else if (Worker w = worker_local())
+			worker_task_do(w, Task<void()>::make(std::forward<TFunc>(fn)));
 		else
-			w = worker_local();
-		worker_task_do(w, Task<void()>::make(std::forward<TFunc>(fn)));
+			panic("can't find any local fabric or worker");
 	}
 
 
