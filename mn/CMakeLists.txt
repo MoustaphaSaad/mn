@@ -185,7 +185,7 @@ endif()
 
 target_link_libraries(mn
 	PRIVATE
-		"$<$<PLATFORM_ID:Windows>:dbghelp;ws2_32;Synchronization>"
+		"$<$<PLATFORM_ID:Windows>:dbghelp;ws2_32>"
 		"$<$<PLATFORM_ID:Linux>:pthread;rt;dl;uuid>"
 		"$<$<PLATFORM_ID:Apple>:pthread;dl>")
 
@@ -221,6 +221,10 @@ if (MN_WAITGROUP_FUTEX)
 	target_compile_definitions(mn
 		PRIVATE
 			-DMN_WAITGROUP_FUTEX=1
+	)
+	target_link_libraries(mn
+		PRIVATE
+		"$<$<PLATFORM_ID:Windows>:Synchronization>"
 	)
 endif (MN_WAITGROUP_FUTEX)
 
