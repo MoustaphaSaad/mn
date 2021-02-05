@@ -617,7 +617,7 @@ namespace mn
 		while(true)
 		{
 			auto val = self.load();
-			auto res = futex(&self, FUTEX_WAIT, val, NULL, NULL, 0);
+			auto res = syscall(SYS_futex, (int32_t*)&self, FUTEX_WAIT, val, NULL, NULL, 0);
 			if (res == -1)
 			{
 				auto e = errno;
@@ -639,7 +639,7 @@ namespace mn
 	void
 	waitgroup_wake(Waitgroup& self)
 	{
-		auto res = futex(&self, FUTEX_WAKE, INT_MAX, NULL, NULL, 0);
+		auto res = syscall(SYS_futex, (int32_t*)&self, FUTEX_WAKE, INT_MAX, NULL, NULL, 0);
 		assert(res > 0);
 	}
 }

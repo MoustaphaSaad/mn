@@ -613,26 +613,19 @@ namespace mn
 	void
 	waitgroup_wait(Waitgroup& self)
 	{
-		constexpr int LIMIT = 128;
-		static_assert(LIMIT % 2 == 0, "spin limit should be divisible by 2");
-		int spin_limit = LIMIT;
+		constexpr int SPIN_LIMIT = 128;
 		int spin_count = 0;
 
 		while(self.load() > 0)
 		{
-			if (spin_count < spin_limit)
+			if (spin_count < SPIN_LIMIT)
 			{
 				++spin_count;
 				_mm_pause();
 			}
 			else
 			{
-				thread_sleep(0);
-				if (spin_limit > 1)
-				{
-					spin_limit /= 2;
-					spin_count = 0;
-				}
+				thread_sleep(1);
 			}
 		}
 	}
