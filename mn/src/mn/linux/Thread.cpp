@@ -10,6 +10,8 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <sys/time.h>
+#include <linux/futex.h>
 
 #include <assert.h>
 #include <chrono>
@@ -606,5 +608,38 @@ namespace mn
 	cond_var_notify_all(Cond_Var self)
 	{
 		pthread_cond_broadcast(&self->cv);
+	}
+
+	// Waitgroup
+	void
+	waitgroup_wait(Waitgroup& self)
+	{
+		while(true)
+		{
+			auto val = self.load();
+			auto res = futex(&self, FUTEX_WAIT, val, NULL, NULL, 0);
+			if (res == -1)
+			{
+				auto e = errno;
+				if (e != EAGAIN)
+					panic("futex error: {}", e);
+			}
+			else if (res == 0)
+			{
+				// real wakeup
+				return;
+			}
+			else
+			{
+				panic("unreachable");
+			}
+		}
+	}
+
+	void
+	waitgroup_wake(Waitgroup& self)
+	{
+		auto res = futex(&self, FUTEX_WAKE, INT_MAX, NULL, NULL, 0);
+		assert(res > 0);
 	}
 }

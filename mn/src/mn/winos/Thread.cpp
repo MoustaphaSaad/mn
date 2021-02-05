@@ -644,4 +644,19 @@ namespace mn
 	{
 		WakeAllConditionVariable(&self->cv);
 	}
+
+	// Waitgroup
+	void
+	waitgroup_wait(Waitgroup& self)
+	{
+		auto v = self.load();
+		[[maybe_unused]] auto res = WaitOnAddress(&self, &v, sizeof(self), INFINITE);
+		assert(res == TRUE);
+	}
+
+	void
+	waitgroup_wake(Waitgroup& self)
+	{
+		WakeByAddressAll(&self);
+	}
 }

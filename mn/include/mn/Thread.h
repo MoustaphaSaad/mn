@@ -2,8 +2,10 @@
 
 #include "mn/Exports.h"
 #include "mn/Base.h"
+#include "mn/OS.h"
 
 #include <stdint.h>
+#include <atomic>
 
 namespace mn
 {
@@ -227,4 +229,29 @@ namespace mn
 
 	MN_EXPORT void
 	cond_var_notify_all(Cond_Var self);
+
+	// Semaphore
+	typedef std::atomic<int32_t> Waitgroup;
+
+	MN_EXPORT void
+	waitgroup_wait(Waitgroup& self);
+
+	MN_EXPORT void
+	waitgroup_wake(Waitgroup& self);
+
+	inline static void
+	waitgroup_add(Waitgroup& self, int32_t i)
+	{
+		self.fetch_add(i);
+	}
+
+	inline static void
+	waitgroup_done(Waitgroup& self)
+	{
+		[[maybe_unused]] int prev = self.fetch_sub(1);
+		if (prev < 1)
+			panic("Waitgroup misuse: add called concurrently with wait");
+		if (prev == 1)
+			waitgroup_wake(self);
+	}
 }

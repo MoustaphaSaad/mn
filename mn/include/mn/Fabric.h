@@ -176,26 +176,6 @@ namespace mn
 			panic("can't find any local fabric or worker");
 	}
 
-
-	// Waitgroup
-	typedef std::atomic<int32_t> Waitgroup;
-
-	inline static void
-	waitgroup_add(Waitgroup& self, int32_t i)
-	{
-		self.fetch_add(i);
-	}
-
-	inline static void
-	waitgroup_done(Waitgroup& self)
-	{
-		[[maybe_unused]] int prev = self.fetch_sub(1);
-		assert(prev >= 0);
-	}
-
-	MN_EXPORT void
-	waitgroup_wait(Waitgroup& self);
-
 	typedef struct IChan_Stream* Chan_Stream;
 	struct IChan_Stream final: IStream
 	{

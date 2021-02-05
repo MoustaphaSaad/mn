@@ -8,6 +8,10 @@
 #include <chrono>
 #include <thread>
 
+#define NOMINMAX
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+
 namespace mn
 {
 	constexpr static auto DEFAULT_COOP_BLOCKING_THRESHOLD = 100;
@@ -785,27 +789,6 @@ namespace mn
 			_single_threaded_compute_sized(global, size, local, fn);
 		else
 			_multi_threaded_compute_sized(self, global, size, local, fn);
-	}
-
-	// Waitgroup
-	void
-	waitgroup_wait(Waitgroup& self)
-	{
-		constexpr int SPIN_LIMIT = 128;
-		int spin_count = 0;
-
-		while(self.load() > 0)
-		{
-			if(spin_count < SPIN_LIMIT)
-			{
-				++spin_count;
-				_mm_pause();
-			}
-			else
-			{
-				thread_sleep(1);
-			}
-		}
 	}
 
 	// channel stream

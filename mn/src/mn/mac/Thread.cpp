@@ -10,6 +10,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <emmintrin.h>
 
 #include <assert.h>
 #include <chrono>
@@ -606,5 +607,39 @@ namespace mn
 	cond_var_notify_all(Cond_Var self)
 	{
 		pthread_cond_broadcast(&self->cv);
+	}
+
+	// Waitgroup
+	void
+	waitgroup_wait(Waitgroup& self)
+	{
+		constexpr int LIMIT = 128;
+		static_assert(LIMIT % 2 == 0, "spin limit should be divisible by 2");
+		int spin_limit = LIMIT;
+		int spin_count = 0;
+
+		while(self.load() > 0)
+		{
+			if (spin_count < spin_limit)
+			{
+				++spin_count;
+				_mm_pause();
+			}
+			else
+			{
+				thread_sleep(0);
+				if (spin_limit > 1)
+				{
+					spin_limit /= 2;
+					spin_count = 0;
+				}
+			}
+		}
+	}
+
+	void
+	waitgroup_wake(Waitgroup& self)
+	{
+		// do nothing
 	}
 }
