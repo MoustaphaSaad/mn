@@ -646,6 +646,7 @@ namespace mn
 	}
 
 	// Waitgroup
+#if MN_WAITGROUP_FUTEX
 	void
 	waitgroup_wait(Waitgroup& self)
 	{
@@ -659,4 +660,31 @@ namespace mn
 	{
 		WakeByAddressAll(&self);
 	}
+#else
+	void
+	waitgroup_wait(Waitgroup& self)
+	{
+		constexpr int SPIN_LIMIT = 128;
+		int spin_count = 0;
+
+		while(self.load() > 0)
+		{
+			if (spin_count < SPIN_LIMIT)
+			{
+				++spin_count;
+				_mm_pause();
+			}
+			else
+			{
+				thread_sleep(1);
+			}
+		}
+	}
+
+	void
+	waitgroup_wake(Waitgroup& self)
+	{
+		// do nothing
+	}
+#endif
 }

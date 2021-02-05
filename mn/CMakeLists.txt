@@ -216,6 +216,14 @@ if (MN_DEADLOCK)
 	)
 endif (MN_DEADLOCK)
 
+if (MN_WAITGROUP_FUTEX)
+	message(STATUS "feature: waitgroup futex implementation")
+	target_compile_definitions(mn
+		PRIVATE
+			-DMN_WAITGROUP_FUTEX=1
+	)
+endif (MN_WAITGROUP_FUTEX)
+
 # enable C++17
 # disable any compiler specifc extensions
 # add d suffix in debug mode

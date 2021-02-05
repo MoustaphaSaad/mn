@@ -10,9 +10,12 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <sys/types.h>
+
+#if MN_WAITGROUP_FUTEX
 #include <sys/time.h>
 #include <linux/futex.h>
 #include <sys/syscall.h>
+#endif
 
 #include <assert.h>
 #include <chrono>
@@ -612,6 +615,7 @@ namespace mn
 	}
 
 	// Waitgroup
+#if MN_WAITGROUP_FUTEX
 	void
 	waitgroup_wait(Waitgroup& self)
 	{
@@ -643,4 +647,31 @@ namespace mn
 		auto res = syscall(SYS_futex, (int32_t*)&self, FUTEX_WAKE, INT_MAX, NULL, NULL, 0);
 		assert(res > 0);
 	}
+#else
+	void
+	waitgroup_wait(Waitgroup& self)
+	{
+		constexpr int SPIN_LIMIT = 128;
+		int spin_count = 0;
+
+		while(self.load() > 0)
+		{
+			if (spin_count < SPIN_LIMIT)
+			{
+				++spin_count;
+				_mm_pause();
+			}
+			else
+			{
+				thread_sleep(1);
+			}
+		}
+	}
+
+	void
+	waitgroup_wake(Waitgroup& self)
+	{
+		// do nothing
+	}
+#endif
 }
