@@ -12,6 +12,7 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <linux/futex.h>
+#include <sys/syscall.h>
 
 #include <assert.h>
 #include <chrono>
