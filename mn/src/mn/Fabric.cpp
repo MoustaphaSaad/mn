@@ -8,10 +8,6 @@
 #include <chrono>
 #include <thread>
 
-#define NOMINMAX
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
-
 namespace mn
 {
 	constexpr static auto DEFAULT_COOP_BLOCKING_THRESHOLD = 100;
