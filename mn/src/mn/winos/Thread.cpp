@@ -11,7 +11,7 @@
 #include <Windows.h>
 
 #include <assert.h>
-
+#include <emmintrin.h>
 #include <chrono>
 
 namespace mn

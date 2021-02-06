@@ -18,6 +18,7 @@
 #endif
 
 #include <assert.h>
+#include <emmintrin.h>
 #include <chrono>
 
 namespace mn
@@ -655,8 +656,7 @@ namespace mn
 	void
 	waitgroup_wake(Waitgroup& self)
 	{
-		auto res = syscall(SYS_futex, (int32_t*)&self, FUTEX_WAKE, INT_MAX, NULL, NULL, 0);
-		assert(res > 0);
+		syscall(SYS_futex, (int32_t*)&self, FUTEX_WAKE, INT_MAX, NULL, NULL, 0);
 	}
 #else
 	void
