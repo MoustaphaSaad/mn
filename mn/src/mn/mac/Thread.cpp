@@ -613,6 +613,8 @@ namespace mn
 	void
 	waitgroup_wait(Waitgroup& self)
 	{
+		worker_block_ahead();
+
 		constexpr int SPIN_LIMIT = 128;
 		int spin_count = 0;
 
@@ -628,6 +630,8 @@ namespace mn
 				thread_sleep(1);
 			}
 		}
+
+		worker_block_clear();
 	}
 
 	void

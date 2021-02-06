@@ -21,7 +21,7 @@ option(MN_LEAK             "Enables mn memory leak detection"                   
 option(MN_DEADLOCK         "Enables mn deadlock detection"                            OFF)
 option(MN_POOL_DOUBLE_FREE "Enables mn pool double free check"                        OFF)
 option(MN_SHARED           "Forces mn to build as a shared library"                   ON)
-option(MN_WAITGROUP_FUTEX  "Uses the futex implementation in waitgroups"              ON)
+option(MN_WAITGROUP_FUTEX  "Uses the futex implementation in waitgroups"              OFF)
 
 
 add_subdirectory(fmt-6.2.0 EXCLUDE_FROM_ALL)

@@ -619,9 +619,18 @@ namespace mn
 	void
 	waitgroup_wait(Waitgroup& self)
 	{
+		auto val = self.load();
+		if (val == 0)
+			return;
+
+		worker_block_ahead();
+
 		while(true)
 		{
 			auto val = self.load();
+			if (val == 0)
+				break;
+
 			auto res = syscall(SYS_futex, (int32_t*)&self, FUTEX_WAIT, val, NULL, NULL, 0);
 			if (res == -1)
 			{
@@ -639,6 +648,8 @@ namespace mn
 				panic("unreachable");
 			}
 		}
+
+		worker_block_clear();
 	}
 
 	void
@@ -651,6 +662,8 @@ namespace mn
 	void
 	waitgroup_wait(Waitgroup& self)
 	{
+		worker_block_ahead();
+
 		constexpr int SPIN_LIMIT = 128;
 		int spin_count = 0;
 
@@ -666,6 +679,8 @@ namespace mn
 				thread_sleep(1);
 			}
 		}
+
+		worker_block_clear();
 	}
 
 	void
