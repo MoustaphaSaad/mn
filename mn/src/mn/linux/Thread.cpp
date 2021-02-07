@@ -11,12 +11,6 @@
 #include <unistd.h>
 #include <sys/types.h>
 
-#if MN_WAITGROUP_FUTEX
-#include <sys/time.h>
-#include <linux/futex.h>
-#include <sys/syscall.h>
-#endif
-
 #include <assert.h>
 #include <emmintrin.h>
 #include <chrono>
@@ -593,7 +587,7 @@ namespace mn
 	{
 		[[maybe_unused]] auto res = pthread_cond_destroy(&self->cv);
 		assert(res == 0);
-		mn::free(self);
+		free(self);
 	}
 
 	void
@@ -640,77 +634,71 @@ namespace mn
 	}
 
 	// Waitgroup
-#if MN_WAITGROUP_FUTEX
-	void
-	waitgroup_wait(Waitgroup& self)
+	struct IWaitgroup
 	{
-		auto val = self.load();
-		if (val == 0)
-			return;
+		int count;
+		pthread_mutex_t mtx;
+		pthread_cond_t cv;
+	};
 
-		worker_block_ahead();
-
-		while(true)
-		{
-			auto val = self.load();
-			if (val == 0)
-				break;
-
-			auto res = syscall(SYS_futex, (int32_t*)&self, FUTEX_WAIT, val, NULL, NULL, 0);
-			if (res == -1)
-			{
-				auto e = errno;
-				if (e != EAGAIN)
-					panic("futex error: {}", e);
-			}
-			else if (res == 0)
-			{
-				// real wakeup
-				return;
-			}
-			else
-			{
-				panic("unreachable");
-			}
-		}
-
-		worker_block_clear();
+	Waitgroup
+	waitgroup_new()
+	{
+		auto self = alloc<IWaitgroup>();
+		self->count = 0;
+		auto res = pthread_mutex_init(&self->mtx, NULL);
+		assert(res == 0);
+		res = pthread_cond_init(&self->cv, NULL);
+		assert(res == 0);
+		return self;
 	}
 
 	void
-	waitgroup_wake(Waitgroup& self)
+	waitgroup_free(Waitgroup self)
 	{
-		syscall(SYS_futex, (int32_t*)&self, FUTEX_WAKE, INT_MAX, NULL, NULL, 0);
+		auto res = pthread_mutex_destroy(&self->mtx);
+		assert(res == 0);
+		res = pthread_cond_destroy(&self->cv);
+		assert(res == 0);
+		free(self);
 	}
-#else
+
 	void
-	waitgroup_wait(Waitgroup& self)
+	waitgroup_wait(Waitgroup self)
 	{
 		worker_block_ahead();
+		mn_defer(worker_block_clear());
 
-		constexpr int SPIN_LIMIT = 128;
-		int spin_count = 0;
+		pthread_mutex_lock(&self->mtx);
+		mn_defer(pthread_mutex_unlock(&self->mtx));
 
-		while(self.load() > 0)
-		{
-			if (spin_count < SPIN_LIMIT)
-			{
-				++spin_count;
-				_mm_pause();
-			}
-			else
-			{
-				thread_sleep(1);
-			}
-		}
+		while(self->count > 0)
+			pthread_cond_wait(&self->cv, &self->mtx);
 
-		worker_block_clear();
+		assert(self->count == 0);
 	}
 
 	void
-	waitgroup_wake(Waitgroup& self)
+	waitgroup_add(Waitgroup self, int c)
 	{
-		// do nothing
+		assert(c > 0);
+
+		pthread_mutex_lock(&self->mtx);
+		mn_defer(pthread_mutex_unlock(&self->mtx));
+
+		self->count += c;
 	}
-#endif
+
+	void
+	waitgroup_done(Waitgroup self)
+	{
+		pthread_mutex_lock(&self->mtx);
+		mn_defer(pthread_mutex_unlock(&self->mtx));
+
+		--self->count;
+		assert(self->count >= 0);
+
+		if (self->count == 0)
+			pthread_cond_broadcast(&self->cv);
+	}
 }

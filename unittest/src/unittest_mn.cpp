@@ -752,12 +752,13 @@ TEST_CASE("fabric simple function")
 
 	int n = 0;
 
-	Waitgroup g = 0;
-	waitgroup_add(g, 1);
+	Auto_Waitgroup g;
 
-	go(f, [&n, &g] { ++n; waitgroup_done(g); });
+	g.add(1);
 
-	waitgroup_wait(g);
+	go(f, [&n, &g] { ++n; g.done(); });
+
+	g.wait();
 	CHECK(n == 1);
 
 	fabric_free(f);
@@ -769,19 +770,19 @@ TEST_CASE("unbuffered channel with multiple workers")
 	settings.workers_count = 3;
 	Fabric f = fabric_new(settings);
 	Chan<size_t> c = chan_new<size_t>();
-	Waitgroup g = 0;
+	Auto_Waitgroup g;
 
 	std::atomic<size_t> sum = 0;
 
 	auto worker = [c, &sum, &g]{
 		for (auto& num : c)
 			sum += num;
-		waitgroup_done(g);
+		g.done();
 	};
 
 	for(size_t i = 0; i < 3; ++i)
 	{
-		waitgroup_add(g, 1);
+		g.add(1);
 		go(f, worker);
 	}
 
@@ -789,7 +790,7 @@ TEST_CASE("unbuffered channel with multiple workers")
 		chan_send(c, i);
 	chan_close(c);
 
-	waitgroup_wait(g);
+	g.wait();
 	CHECK(sum == 5050);
 
 	chan_free(c);
@@ -802,19 +803,19 @@ TEST_CASE("buffered channel")
 	settings.workers_count = 3;
 	Fabric f = fabric_new(settings);
 	Chan<size_t> c = chan_new<size_t>(1000);
-	Waitgroup g = 0;
+	Auto_Waitgroup g;
 
 	std::atomic<size_t> sum = 0;
 
 	auto worker = [c, &sum, &g] {
 		for (const auto& num : c)
 			sum += num;
-		waitgroup_done(g);
+		g.done()
 	};
 
 	for (size_t i = 0; i < 6; ++i)
 	{
-		waitgroup_add(g, 1);
+		g.add(1);
 		go(f, worker);
 	}
 
@@ -822,7 +823,7 @@ TEST_CASE("buffered channel")
 		chan_send(c, i);
 	chan_close(c);
 
-	waitgroup_wait(g);
+	g.wait();
 	CHECK(sum == 50005000);
 
 	chan_free(c);
@@ -835,15 +836,15 @@ TEST_CASE("unbuffered channel from coroutine")
 	settings.workers_count = 3;
 	Fabric f = fabric_new(settings);
 	Chan<size_t> c = chan_new<size_t>();
-	Waitgroup g = 0;
+	Auto_Waitgroup g;
 
 	size_t sum = 0;
 
-	waitgroup_add(g, 1);
+	g.add(1);
 	go(f, [c, &sum, &g] {
 		for (auto num : c)
 			sum += num;
-		waitgroup_done(g);
+		g.done()
 	});
 
 	go(f, [c] {
@@ -852,7 +853,7 @@ TEST_CASE("unbuffered channel from coroutine")
 		chan_close(c);
 	});
 
-	waitgroup_wait(g);
+	g.wait();
 	CHECK(sum == 5050);
 
 	chan_free(c);
@@ -865,15 +866,15 @@ TEST_CASE("buffered channel from coroutine")
 	settings.workers_count = 3;
 	Fabric f = fabric_new(settings);
 	Chan<size_t> c = chan_new<size_t>(1000);
-	Waitgroup g = 0;
+	Auto_Waitgroup g;
 
 	size_t sum = 0;
 
-	waitgroup_add(g, 1);
+	g.add(1);
 	go(f, [c, &sum, &g] {
 		for (auto num : c)
 			sum += num;
-		waitgroup_done(g);
+		g.done()
 	});
 
 	go(f, [c]{
@@ -882,7 +883,7 @@ TEST_CASE("buffered channel from coroutine")
 		chan_close(c);
 	});
 
-	waitgroup_wait(g);
+	g.wait();
 	CHECK(sum == 50005000);
 
 	chan_free(c);
@@ -895,17 +896,17 @@ TEST_CASE("coroutine launching coroutines")
 	settings.workers_count = 3;
 	Fabric f = fabric_new(settings);
 	Chan<int> c = chan_new<int>(1000);
-	Waitgroup g = 0;
+	Auto_Waitgroup g;
 
 	size_t sum = 0;
 
-	waitgroup_add(g, 1);
+	g.add(1);
 	go(f, [&g, &sum, c]{
 
 		go([&g, &sum, c]{
 			for (auto num : c)
 				sum += num;
-			waitgroup_done(g);
+			g.done()
 		});
 
 		for (int i = 0; i <= 10000; ++i)
@@ -913,7 +914,7 @@ TEST_CASE("coroutine launching coroutines")
 		chan_close(c);
 	});
 
-	waitgroup_wait(g);
+	g.wait();
 	CHECK(sum == 50005000);
 
 	chan_free(c);
@@ -924,18 +925,18 @@ TEST_CASE("stress")
 {
 	Fabric f = fabric_new({});
 	Chan<size_t> c = chan_new<size_t>(100);
-	Waitgroup g = 0;
+	Auto_Waitgroup g;
 
 	std::atomic<size_t> sum = 0;
 
 	for (size_t i = 0; i <= 1000; ++i)
 	{
-		waitgroup_add(g, 1);
+		g.add(1);
 		go(f, [c, i] { chan_send(c, i); });
-		go(f, [c, &sum, &g] { auto[n, _] = chan_recv(c); sum += n; waitgroup_done(g); });
+		go(f, [c, &sum, &g] { auto[n, _] = chan_recv(c); sum += n; g.done() });
 	}
 
-	waitgroup_wait(g);
+	g.wait();
 	CHECK(sum == 500500);
 
 	chan_free(c);

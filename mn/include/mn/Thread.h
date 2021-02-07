@@ -5,7 +5,6 @@
 #include "mn/OS.h"
 
 #include <stdint.h>
-#include <atomic>
 
 namespace mn
 {
@@ -231,27 +230,76 @@ namespace mn
 	cond_var_notify_all(Cond_Var self);
 
 	// Semaphore
-	typedef std::atomic<int32_t> Waitgroup;
+	typedef struct IWaitgroup* Waitgroup;
+
+	MN_EXPORT Waitgroup
+	waitgroup_new();
 
 	MN_EXPORT void
-	waitgroup_wait(Waitgroup& self);
+	waitgroup_free(Waitgroup self);
 
 	MN_EXPORT void
-	waitgroup_wake(Waitgroup& self);
+	waitgroup_wait(Waitgroup self);
 
-	inline static void
-	waitgroup_add(Waitgroup& self, int32_t i)
-	{
-		self.fetch_add(i);
-	}
+	MN_EXPORT void
+	waitgroup_add(Waitgroup self, int c);
 
-	inline static void
-	waitgroup_done(Waitgroup& self)
+	MN_EXPORT void
+	waitgroup_done(Waitgroup self);
+
+	struct Auto_Waitgroup
 	{
-		[[maybe_unused]] int prev = self.fetch_sub(1);
-		if (prev < 1)
-			panic("Waitgroup misuse: add called concurrently with wait");
-		if (prev == 1)
-			waitgroup_wake(self);
-	}
+		Waitgroup handle;
+
+		Auto_Waitgroup()
+			:handle(waitgroup_new())
+		{}
+
+		~Auto_Waitgroup()
+		{
+			if (this->handle)
+				waitgroup_free(this->handle);
+		}
+
+		Auto_Waitgroup(const Auto_Waitgroup&) = delete;
+
+		Auto_Waitgroup(Auto_Waitgroup&& other)
+		{
+			this->handle = other.handle;
+			other.handle = nullptr;
+		}
+
+		Auto_Waitgroup&
+		operator=(const Auto_Waitgroup& other) = delete;
+
+		Auto_Waitgroup&
+		operator=(Auto_Waitgroup&& other)
+		{
+			if (this->handle)
+				waitgroup_free(this->handle);
+
+			this->handle = other.handle;
+			other.handle = nullptr;
+
+			return *this;
+		}
+
+		void
+		add(int c)
+		{
+			waitgroup_add(handle, c);
+		}
+
+		void
+		done()
+		{
+			waitgroup_done(handle);
+		}
+
+		void
+		wait()
+		{
+			waitgroup_wait(handle);
+		}
+	};
 }

@@ -6,18 +6,19 @@ int main()
 {
 	auto fabric = mn::fabric_new({});
 
-	mn::Waitgroup wg = 1000;
+	mn::Auto_Waitgroup wg;
+	wg.add(1000);
 
 	for(size_t i = 0; i < 1000; ++i)
 	{
 		mn::fabric_do(fabric, [i, &wg] {
 			mn::thread_sleep(rand() % 1000);
 			mn::print("Hello, from task #{}!\n", i);
-			mn::waitgroup_done(wg);
+			wg.done();
 		});
 	}
 
-	mn::waitgroup_wait(wg);
+	wg.wait();
 	mn::print("Done\n");
 	mn::fabric_free(fabric);
 	return 0;

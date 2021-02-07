@@ -13,7 +13,9 @@ int main()
 	auto mtx2 = mn::mutex_new("mtx2");
 	mn_defer(mn::mutex_free(mtx2));
 
-	mn::Waitgroup wg = 2;
+	mn::Auto_Waitgroup wg;
+	wg.add(2);
+
 	mn::go(f, [&]{
 		mn::mutex_lock(mtx1);
 		mn_defer(mn::mutex_unlock(mtx1));
@@ -23,7 +25,7 @@ int main()
 		mn::mutex_lock(mtx2);
 		mn::mutex_unlock(mtx2);
 
-		mn::waitgroup_done(wg);
+		wg.done();
 	});
 
 	mn::go(f, [&]{
@@ -35,10 +37,10 @@ int main()
 		mn::mutex_lock(mtx1);
 		mn::mutex_unlock(mtx1);
 
-		mn::waitgroup_done(wg);
+		wg.done();
 	});
 
-	mn::waitgroup_wait(wg);
+	wg.wait();
 
 	return 0;
 }

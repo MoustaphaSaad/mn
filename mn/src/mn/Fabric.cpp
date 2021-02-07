@@ -266,9 +266,9 @@ namespace mn
 			}
 
 			// get the max/min jobs
-			size_t worker_with_most_jobs = 0;
+			size_t busiest_worker = 0;
 			size_t max_jobs = 0;
-			size_t worker_with_least_jobs = 0;
+			size_t idle_worker = SIZE_MAX;
 			size_t min_jobs = SIZE_MAX;
 			for (size_t i = 0; i < self->workers.count; ++i)
 			{
@@ -279,28 +279,30 @@ namespace mn
 
 				if (worker->job_q.count > max_jobs)
 				{
-					worker_with_most_jobs = i;
+					busiest_worker = i;
 					max_jobs = worker->job_q.count;
 				}
 
-				if (worker->job_q.count < min_jobs)
+				if (worker->atomic_job_start_time_in_ms.load() == 0 && worker->job_q.count < min_jobs)
 				{
-					worker_with_least_jobs = i;
+					idle_worker = i;
 					min_jobs = worker->job_q.count;
 				}
 			}
 
-			// steal from the max jobs and give to min jobs
-			if (max_jobs > min_jobs && min_jobs == 0 && max_jobs > 1)
+			// steal from the max jobs and give to min jobs, if we have a worker that's idle
+			if (idle_worker < self->workers.count && max_jobs > min_jobs && min_jobs == 0)
 			{
 				{
-					auto max_worker = self->workers[worker_with_most_jobs];
+					auto max_worker = self->workers[busiest_worker];
 
 					mutex_lock(max_worker->mtx);
 					mn_defer(mutex_unlock(max_worker->mtx));
 
 					max_jobs = max_worker->job_q.count;
-					auto job_steal_count = max_jobs / 2;
+					size_t job_steal_count = max_jobs;
+					if (job_steal_count > 1)
+						job_steal_count /= 2;
 
 					for (size_t i = 0; i < job_steal_count; ++i)
 					{
@@ -312,7 +314,7 @@ namespace mn
 				}
 
 				{
-					auto min_worker = self->workers[worker_with_least_jobs];
+					auto min_worker = self->workers[idle_worker];
 
 					mutex_lock(min_worker->mtx);
 					mn_defer(mutex_unlock(min_worker->mtx));
@@ -602,7 +604,7 @@ namespace mn
 	_multi_threaded_compute(Fabric self, Compute_Dims global, Compute_Dims local, Task<void(Compute_Args)> fn)
 	{
 		std::atomic<size_t> available_concurrent_workers = self->workers.count;
-		Waitgroup wg = 0;
+		Auto_Waitgroup wg;
 		for (uint32_t z = 0; z < global.z; ++z)
 		{
 			for (uint32_t y = 0; y < global.y; ++y)
@@ -611,7 +613,7 @@ namespace mn
 				{
 					worker_block_on([&available_concurrent_workers] { return available_concurrent_workers > 0; });
 					available_concurrent_workers.fetch_sub(1);
-					waitgroup_add(wg, 1);
+					wg.add(1);
 					fabric_do(self, [global_x = x, global_y = y, global_z = z, global, local, &available_concurrent_workers, &wg, &fn] {
 						for (uint32_t z = 0; z < local.z; ++z)
 						{
@@ -634,13 +636,13 @@ namespace mn
 								}
 							}
 						}
-						waitgroup_done(wg);
+						wg.done();
 						available_concurrent_workers.fetch_add(1);
 					});
 				}
 			}
 		}
-		waitgroup_wait(wg);
+		wg.wait();
 		task_free(fn);
 	}
 
@@ -693,7 +695,7 @@ namespace mn
 	_multi_threaded_compute_sized(Fabric self, Compute_Dims global, Compute_Dims size, Compute_Dims local, Task<void(Compute_Args)> fn)
 	{
 		std::atomic<size_t> available_concurrent_workers = self->workers.count;
-		Waitgroup wg = 0;
+		Auto_Waitgroup wg;
 		for (uint32_t z = 0; z < global.z; ++z)
 		{
 			for (uint32_t y = 0; y < global.y; ++y)
@@ -702,7 +704,7 @@ namespace mn
 				{
 					worker_block_on([&available_concurrent_workers] { return available_concurrent_workers > 0; });
 					available_concurrent_workers.fetch_sub(1);
-					waitgroup_add(wg, 1);
+					wg.add(1);
 					fabric_do(self, [global_x = x, global_y = y, global_z = z, global, size, local, &available_concurrent_workers, &wg, &fn] {
 						for (uint32_t z = 0; z < local.z; ++z)
 						{
@@ -727,13 +729,13 @@ namespace mn
 								}
 							}
 						}
-						waitgroup_done(wg);
+						wg.done();
 						available_concurrent_workers.fetch_add(1);
 					});
 				}
 			}
 		}
-		waitgroup_wait(wg);
+		wg.wait();
 		task_free(fn);
 	}
 
