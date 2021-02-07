@@ -12,7 +12,6 @@
 #include <sys/types.h>
 
 #include <assert.h>
-#include <emmintrin.h>
 #include <chrono>
 
 namespace mn

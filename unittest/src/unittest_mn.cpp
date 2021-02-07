@@ -810,7 +810,7 @@ TEST_CASE("buffered channel")
 	auto worker = [c, &sum, &g] {
 		for (const auto& num : c)
 			sum += num;
-		g.done()
+		g.done();
 	};
 
 	for (size_t i = 0; i < 6; ++i)
@@ -844,7 +844,7 @@ TEST_CASE("unbuffered channel from coroutine")
 	go(f, [c, &sum, &g] {
 		for (auto num : c)
 			sum += num;
-		g.done()
+		g.done();
 	});
 
 	go(f, [c] {
@@ -874,7 +874,7 @@ TEST_CASE("buffered channel from coroutine")
 	go(f, [c, &sum, &g] {
 		for (auto num : c)
 			sum += num;
-		g.done()
+		g.done();
 	});
 
 	go(f, [c]{
@@ -906,7 +906,7 @@ TEST_CASE("coroutine launching coroutines")
 		go([&g, &sum, c]{
 			for (auto num : c)
 				sum += num;
-			g.done()
+			g.done();
 		});
 
 		for (int i = 0; i <= 10000; ++i)
@@ -933,7 +933,7 @@ TEST_CASE("stress")
 	{
 		g.add(1);
 		go(f, [c, i] { chan_send(c, i); });
-		go(f, [c, &sum, &g] { auto[n, _] = chan_recv(c); sum += n; g.done() });
+		go(f, [c, &sum, &g] { auto[n, _] = chan_recv(c); sum += n; g.done(); });
 	}
 
 	g.wait();

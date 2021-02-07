@@ -216,18 +216,6 @@ if (MN_DEADLOCK)
 	)
 endif (MN_DEADLOCK)
 
-target_compile_definitions(mn
-	PRIVATE
-		-DMN_WAITGROUP_FUTEX=$<BOOL:${MN_WAITGROUP_FUTEX}>
-)
-if (MN_WAITGROUP_FUTEX)
-	message(STATUS "feature: waitgroup futex implementation")
-	target_link_libraries(mn
-		PRIVATE
-		"$<$<PLATFORM_ID:Windows>:Synchronization>"
-	)
-endif (MN_WAITGROUP_FUTEX)
-
 # enable C++17
 # disable any compiler specifc extensions
 # add d suffix in debug mode

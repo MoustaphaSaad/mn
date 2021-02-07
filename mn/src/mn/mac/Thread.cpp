@@ -10,7 +10,6 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include <emmintrin.h>
 
 #include <assert.h>
 #include <chrono>
