@@ -856,8 +856,8 @@ TEST_CASE("unbuffered channel from coroutine")
 	g.wait();
 	CHECK(sum == 5050);
 
-	chan_free(c);
 	fabric_free(f);
+	chan_free(c);
 }
 
 TEST_CASE("buffered channel from coroutine")
@@ -886,8 +886,8 @@ TEST_CASE("buffered channel from coroutine")
 	g.wait();
 	CHECK(sum == 50005000);
 
-	chan_free(c);
 	fabric_free(f);
+	chan_free(c);
 }
 
 TEST_CASE("coroutine launching coroutines")
@@ -917,8 +917,8 @@ TEST_CASE("coroutine launching coroutines")
 	g.wait();
 	CHECK(sum == 50005000);
 
-	chan_free(c);
 	fabric_free(f);
+	chan_free(c);
 }
 
 TEST_CASE("stress")
@@ -939,8 +939,8 @@ TEST_CASE("stress")
 	g.wait();
 	CHECK(sum == 500500);
 
-	chan_free(c);
 	fabric_free(f);
+	chan_free(c);
 }
 
 TEST_CASE("buddy")
