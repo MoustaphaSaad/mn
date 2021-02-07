@@ -634,33 +634,71 @@ namespace mn
 	}
 
 	// Waitgroup
-	void
-	waitgroup_wait(Waitgroup& self)
+	struct IWaitgroup
 	{
-		worker_block_ahead();
+		int count;
+		pthread_mutex_t mtx;
+		pthread_cond_t cv;
+	};
 
-		constexpr int SPIN_LIMIT = 128;
-		int spin_count = 0;
-
-		while(self.load() > 0)
-		{
-			if (spin_count < SPIN_LIMIT)
-			{
-				++spin_count;
-				_mm_pause();
-			}
-			else
-			{
-				thread_sleep(1);
-			}
-		}
-
-		worker_block_clear();
+	Waitgroup
+	waitgroup_new()
+	{
+		auto self = alloc<IWaitgroup>();
+		self->count = 0;
+		auto res = pthread_mutex_init(&self->mtx, NULL);
+		assert(res == 0);
+		res = pthread_cond_init(&self->cv, NULL);
+		assert(res == 0);
+		return self;
 	}
 
 	void
-	waitgroup_wake(Waitgroup& self)
+	waitgroup_free(Waitgroup self)
 	{
-		// do nothing
+		auto res = pthread_mutex_destroy(&self->mtx);
+		assert(res == 0);
+		res = pthread_cond_destroy(&self->cv);
+		assert(res == 0);
+		free(self);
+	}
+
+	void
+	waitgroup_wait(Waitgroup self)
+	{
+		worker_block_ahead();
+		mn_defer(worker_block_clear());
+
+		pthread_mutex_lock(&self->mtx);
+		mn_defer(pthread_mutex_unlock(&self->mtx));
+
+		while(self->count > 0)
+			pthread_cond_wait(&self->cv, &self->mtx);
+
+		assert(self->count == 0);
+	}
+
+	void
+	waitgroup_add(Waitgroup self, int c)
+	{
+		assert(c > 0);
+
+		pthread_mutex_lock(&self->mtx);
+		mn_defer(pthread_mutex_unlock(&self->mtx));
+
+		self->count += c;
+	}
+
+	void
+	waitgroup_done(Waitgroup self)
+	{
+		pthread_mutex_lock(&self->mtx);
+		mn_defer(pthread_mutex_unlock(&self->mtx));
+
+		--self->count;
+		assert(self->count >= 0);
+
+		if (self->count == 0)
+			pthread_cond_broadcast(&self->cv);
 	}
 }

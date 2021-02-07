@@ -670,54 +670,66 @@ namespace mn
 	}
 
 	// Waitgroup
-#if MN_WAITGROUP_FUTEX
-	void
-	waitgroup_wait(Waitgroup& self)
+	struct IWaitgroup
 	{
-		auto v = self.load();
-		if (v == 0)
-			return;
+		int count;
+		CRITICAL_SECTION cs;
+		CONDITION_VARIABLE cv;
+	};
 
+	Waitgroup
+	waitgroup_new()
+	{
+		auto self = alloc<IWaitgroup>();
+		self->count = 0;
+		InitializeCriticalSectionAndSpinCount(&self->cs, 1<<14);
+		InitializeConditionVariable(&self->cv);
+		return self;
+	}
+
+	void
+	waitgroup_free(Waitgroup self)
+	{
+		DeleteCriticalSection(&self->cs);
+		free(self);
+	}
+
+	void
+	waitgroup_wait(Waitgroup self)
+	{
 		worker_block_ahead();
-		[[maybe_unused]] auto res = WaitOnAddress(&self, &v, sizeof(self), INFINITE);
-		assert(res == TRUE);
-		worker_block_clear();
+		mn_defer(worker_block_clear());
+
+		EnterCriticalSection(&self->cs);
+		mn_defer(LeaveCriticalSection(&self->cs));
+
+		while(self->count > 0)
+			SleepConditionVariableCS(&self->cv, &self->cs, INFINITE);
+
+		assert(self->count == 0);
 	}
 
 	void
-	waitgroup_wake(Waitgroup& self)
+	waitgroup_add(Waitgroup self, int c)
 	{
-		WakeByAddressAll(&self);
-	}
-#else
-	void
-	waitgroup_wait(Waitgroup& self)
-	{
-		worker_block_ahead();
+		assert(c > 0);
 
-		constexpr int SPIN_LIMIT = 128;
-		int spin_count = 0;
+		EnterCriticalSection(&self->cs);
+		mn_defer(LeaveCriticalSection(&self->cs));
 
-		while(self.load() > 0)
-		{
-			if (spin_count < SPIN_LIMIT)
-			{
-				++spin_count;
-				_mm_pause();
-			}
-			else
-			{
-				thread_sleep(1);
-			}
-		}
-
-		worker_block_clear();
+		self->count += c;
 	}
 
 	void
-	waitgroup_wake(Waitgroup& self)
+	waitgroup_done(Waitgroup self)
 	{
-		// do nothing
+		EnterCriticalSection(&self->cs);
+		mn_defer(LeaveCriticalSection(&self->cs));
+
+		--self->count;
+		assert(self->count >= 0);
+
+		if (self->count == 0)
+			WakeAllConditionVariable(&self->cv);
 	}
-#endif
 }
