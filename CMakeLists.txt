@@ -48,12 +48,26 @@ if (MN_THREAD_SANITIZER)
 	endif()
 endif ()
 
+include(FetchContent)
+FetchContent_Declare(
+	fmt
+	GIT_REPOSITORY git@github.com:fmtlib/fmt.git
+	GIT_TAG 7.1.3
+	QUIET
+)
 
+FetchContent_Declare(
+	doctest
+	GIT_REPOSITORY https://github.com/onqtam/doctest.git
+	GIT_TAG 2.4.5
+	QUIET
+)
+FetchContent_MakeAvailable(fmt)
 
-add_subdirectory(fmt-6.2.0 EXCLUDE_FROM_ALL)
 add_subdirectory(mn)
 
 if (MN_BUILD_TESTS)
+	FetchContent_MakeAvailable(doctest)
 	add_subdirectory(unittest)
 endif()
 

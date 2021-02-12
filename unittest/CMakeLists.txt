@@ -14,10 +14,11 @@ add_executable(mn_unittest
 target_link_libraries(mn_unittest
 	PRIVATE
 		MoustaphaSaad::mn
+		doctest
 )
 
 # add doctest folder
-target_include_directories(mn_unittest
-	PRIVATE
-		${CMAKE_CURRENT_SOURCE_DIR}/doctest
-)
+# target_include_directories(mn_unittest
+# 	PRIVATE
+# 		${CMAKE_CURRENT_SOURCE_DIR}/doctest
+# )
