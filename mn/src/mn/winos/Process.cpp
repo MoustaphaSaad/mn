@@ -1,5 +1,6 @@
 #include "mn/Process.h"
 #include "mn/Defer.h"
+#include "mn/File.h"
 
 #define NOMINMAX
 #define WIN32_LEAN_AND_MEAN
@@ -50,14 +51,14 @@ namespace mn
 				if (!GetModuleFileNameEx(parent_handle, 0, buffer, MAX_PATH))
 					continue;
 
-				auto path = mn::from_os_encoding(mn::block_from(buffer));
-				auto exe_name = mn::from_os_encoding(mn::block_from(pe32.szExeFile));
+				auto path = from_os_encoding(block_from(buffer));
+				auto exe_name = from_os_encoding(block_from(pe32.szExeFile));
 				mn_defer({
-					mn::str_free(path);
-					mn::str_free(exe_name);
+					str_free(path);
+					str_free(exe_name);
 				});
 
-				if (mn::str_find(path, exe_name, 0) < path.count)
+				if (str_find(path, exe_name, 0) < path.count)
 					ppid = pe32.th32ParentProcessID;
 
 				break;
