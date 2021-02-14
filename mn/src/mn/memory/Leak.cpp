@@ -49,7 +49,7 @@ namespace mn::memory
 	void
 	Leak::free(Block block)
 	{
-		if (block)
+		if (block_is_empty(block) == false)
 		{
 			Node* ptr = ((Node*)block.ptr) - 1;
 

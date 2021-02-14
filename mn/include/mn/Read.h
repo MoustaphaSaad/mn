@@ -121,7 +121,7 @@ namespace mn
 		_guarantee_text_chunk(reader, 40);
 		Block peeked_content = reader_peek(reader, 0);
 
-		if(!peeked_content)
+		if(block_is_empty(peeked_content))
 			return 0;
 
 		char* begin = (char*)peeked_content.ptr;

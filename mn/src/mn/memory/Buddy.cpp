@@ -289,7 +289,7 @@ namespace mn::memory
 	Buddy::free(Block block)
 	{
 		// ignore any attempts to free null pointer
-		if (block == false)
+		if (block_is_empty(block))
 			return;
 
 		// We were given the address returned by "malloc" so get back to the actual

@@ -34,7 +34,7 @@ namespace mn::memory
 			mn::panic("system out of memory");
 
 		_memory_profile_alloc(res.ptr, res.size);
-		if(res)
+		if (block_is_empty(res) == false)
 		{
 			atomic_count.fetch_add(1);
 			atomic_size.fetch_add(size);
@@ -46,7 +46,7 @@ namespace mn::memory
 	void
 	Fast_Leak::free(Block block)
 	{
-		if(block)
+		if(block_is_empty(block) == false)
 		{
 			atomic_count.fetch_sub(1);
 			atomic_size.fetch_sub(block.size);

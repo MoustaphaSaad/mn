@@ -237,7 +237,7 @@ namespace mn
 	inline static Block
 	block_clone(const Block& other, Allocator allocator = allocator_top())
 	{
-		if (other == false)
+		if (block_is_empty(other))
 			return Block{};
 
 		Block self = alloc_from(allocator, other.size, alignof(int));

@@ -18,15 +18,13 @@ namespace mn
 
 		//size of the memory block in bytes
 		size_t size;
-
-		/**
-		 * @brief      Implicit casting operator to boolean for traditional `if(block)` testing
-		 */
-		operator bool() const
-		{
-			return ptr != nullptr && size != 0;
-		}
 	};
+
+	inline static bool
+	block_is_empty(Block self)
+	{
+		return self.ptr == nullptr || self.size == 0;
+	}
 
 	/**
 	 * @brief      Sets all the bytes in the block to 0
@@ -67,7 +65,7 @@ namespace mn
 	 * 			   is pointing to a single instance of type T)
 	 *
 	 * @param[in]  value  The Pointer to the value to be wraped
-	 *                    
+	 *
 	 * @tparam     T      The Type of the pointer
 	 *
 	 * @return     A Block enclosing the object which the pointer points to (uses `sizeof(T)`)
@@ -117,7 +115,7 @@ namespace mn
 	 * 			   the offset as a point that lays at the left of the block and we then
 	 * 			   return the new block which starts at the offset point and encloses till
 	 * 			   the end of the block
-	 *	
+	 *
 	 * @param[in]  block   The block
 	 * @param[in]  offset  The offset
 	 *
