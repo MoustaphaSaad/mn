@@ -65,6 +65,10 @@ namespace mn
 		auto self = (Worker)worker;
 		LOCAL_WORKER = self;
 
+		if (self->fabric)
+			if (self->fabric->settings.on_worker_start)
+				self->fabric->settings.on_worker_start();
+
 		while(true)
 		{
 			auto state = self->atomic_state.load();
@@ -579,6 +583,7 @@ namespace mn
 		str_free(self->name);
 		str_free(self->sysmon_name);
 		task_free(self->settings.after_each_job);
+		task_free(self->settings.on_worker_start);
 		free(self);
 	}
 

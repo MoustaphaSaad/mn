@@ -99,6 +99,7 @@ namespace mn
 		uint32_t external_blocking_threshold_in_ms;
 		bool disable_sysmon;
 		Task<void()> after_each_job;
+		Task<void()> on_worker_start;
 	};
 
 	// fabric_new creates a group of workers
