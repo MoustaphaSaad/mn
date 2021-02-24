@@ -2,6 +2,8 @@
 
 #include "mn/Exports.h"
 
+#include <stdbool.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -15,9 +17,14 @@ extern "C" {
 struct RAD;
 MN_EXPORT extern struct RAD* rad_global;
 
+typedef struct RAD_Settings
+{
+	bool disable_hot_reload;
+} RAD_Settings;
+
 // rad_new creates a new RAD instance
 MN_EXPORT struct RAD*
-rad_new();
+rad_new(RAD_Settings settings);
 
 // rad_free frees the given RAD instance
 MN_EXPORT void

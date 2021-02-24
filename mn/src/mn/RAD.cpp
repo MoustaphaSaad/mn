@@ -42,11 +42,12 @@ struct RAD
 	mn::Mutex mtx;
 	mn::Map<mn::Str, RAD_Module> modules;
 	mn::UUID uuid;
+	RAD_Settings settings;
 };
 
 // API
 RAD*
-rad_new()
+rad_new(RAD_Settings settings)
 {
 	mn::allocator_push(mn::memory::clib());
 	mn_defer(mn::allocator_pop());
@@ -55,6 +56,7 @@ rad_new()
 	self->mtx = mn::mutex_new("Root Mutex");
 	self->modules = mn::map_new<mn::Str, RAD_Module>();
 	self->uuid = mn::uuid_generate();
+	self->settings = settings;
 	return self;
 }
 
@@ -104,15 +106,22 @@ rad_register(RAD* self, const char* name, const char* filepath)
 		return false;
 
 	// file name
-	auto loaded_filepath = mn::strf("{}-{}.loaded-0", os_filepath, self->uuid);
+	mn::Str loaded_filepath{};
+	if (self->settings.disable_hot_reload)
+		loaded_filepath = mn::strf("{}", os_filepath);
+	else
+		loaded_filepath = mn::strf("{}-{}.loaded-0", os_filepath, self->uuid);
 
-	if (mn::path_is_file(loaded_filepath))
+	if (self->settings.disable_hot_reload == false)
 	{
-		if (mn::file_remove(loaded_filepath) == false)
+		if (mn::path_is_file(loaded_filepath))
+		{
+			if (mn::file_remove(loaded_filepath) == false)
+				return false;
+		}
+		if (mn::file_copy(os_filepath, loaded_filepath) == false)
 			return false;
 	}
-	if (mn::file_copy(os_filepath, loaded_filepath) == false)
-		return false;
 
 	auto library = mn::library_open(loaded_filepath);
 	if (library == nullptr)
@@ -190,6 +199,9 @@ rad_ptr(RAD* self, const char* name)
 bool
 rad_update(RAD* self)
 {
+	if (self->settings.disable_hot_reload)
+		return false;
+
 	mn::allocator_push(mn::memory::clib());
 	mn_defer(mn::allocator_pop());
 
