@@ -137,22 +137,20 @@ namespace mn
 		void (*thread_new)(Thread handle, const char* name);
 
 		// Mutex hooks functions
-		size_t per_mutex_user_data_size;
-		void (*mutex_new)(Mutex handle, void* user_data, const char* name);
+		void* (*mutex_new)(Mutex handle, const char* name);
 		void (*mutex_free)(Mutex handle, void* user_data);
 		bool (*mutex_before_lock)(Mutex handle, void* user_data);
 		void (*mutex_after_lock)(Mutex handle, void* user_data);
 		void (*mutex_after_unlock)(Mutex handle, void* user_data);
 
 		// Mutex RW hooks functions
-		size_t per_mutex_rw_user_data_size;
-		void (*mutex_rw_new)(Mutex_RW handle, void* user_data, const char* name);
+		void* (*mutex_rw_new)(Mutex_RW handle, const char* name);
 		void (*mutex_rw_free)(Mutex_RW handle, void* user_data);
-		void (*mutex_before_read_lock)(Mutex_RW handle, void* user_data);
+		bool (*mutex_before_read_lock)(Mutex_RW handle, void* user_data);
 		void (*mutex_after_read_lock)(Mutex_RW handle, void* user_data);
-		void (*mutex_before_write_lock)(Mutex_RW handle, void* user_data);
+		bool (*mutex_before_write_lock)(Mutex_RW handle, void* user_data);
 		void (*mutex_after_write_lock)(Mutex_RW handle, void* user_data);
-		void (*mutex_before_read_unlock)(Mutex_RW handle, void* user_data);
+		void (*mutex_after_read_unlock)(Mutex_RW handle, void* user_data);
 		void (*mutex_after_write_unlock)(Mutex_RW handle, void* user_data);
 	};
 
@@ -163,11 +161,8 @@ namespace mn
 	MN_EXPORT void
 	_thread_new(Thread handle, const char* name);
 
-	MN_EXPORT size_t
-	_mutex_user_data_size();
-
-	MN_EXPORT void
-	_mutex_new(Mutex handle, void* user_data, const char* name);
+	MN_EXPORT void*
+	_mutex_new(Mutex handle, const char* name);
 
 	MN_EXPORT void
 	_mutex_free(Mutex handle, void* user_data);
@@ -180,6 +175,30 @@ namespace mn
 
 	MN_EXPORT void
 	_mutex_after_unlock(Mutex handle, void* user_data);
+
+	MN_EXPORT void*
+	_mutex_rw_new(Mutex_RW handle, const char* name);
+
+	MN_EXPORT void
+	_mutex_rw_free(Mutex_RW handle, void* user_data);
+
+	MN_EXPORT bool
+	_mutex_before_read_lock(Mutex_RW handle, void* user_data);
+
+	MN_EXPORT void
+	_mutex_after_read_lock(Mutex_RW handle, void* user_data);
+
+	MN_EXPORT bool
+	_mutex_before_write_lock(Mutex_RW handle, void* user_data);
+
+	MN_EXPORT void
+	_mutex_after_write_lock(Mutex_RW handle, void* user_data);
+
+	MN_EXPORT void
+	_mutex_after_read_unlock(Mutex_RW handle, void* user_data);
+
+	MN_EXPORT void
+	_mutex_after_write_unlock(Mutex_RW handle, void* user_data);
 
 	MN_EXPORT void
 	_disable_profiling_for_this_thread();

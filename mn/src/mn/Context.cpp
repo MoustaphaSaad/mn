@@ -227,23 +227,14 @@ namespace mn
 			THREAD.thread_new(handle, name);
 	}
 
-	size_t
-	_mutex_user_data_size()
+	void*
+	_mutex_new(Mutex handle, const char* name)
 	{
 		if (PROFILING_DISABLED)
-			return 0;
-
-		return THREAD.per_mutex_user_data_size;
-	}
-
-	void
-	_mutex_new(Mutex handle, void* user_data, const char* name)
-	{
-		if (PROFILING_DISABLED)
-			return;
+			return nullptr;
 
 		if (THREAD.mutex_new)
-			THREAD.mutex_new(handle, user_data, name);
+			return THREAD.mutex_new(handle, name);
 	}
 
 	void
@@ -285,6 +276,88 @@ namespace mn
 
 		if (THREAD.mutex_after_unlock)
 			THREAD.mutex_after_unlock(handle, user_data);
+	}
+
+	void*
+	_mutex_rw_new(Mutex_RW handle, const char* name)
+	{
+		if (PROFILING_DISABLED)
+			return nullptr;
+
+		if (THREAD.mutex_rw_new)
+			return THREAD.mutex_rw_new(handle, name);
+	}
+
+	void
+	_mutex_rw_free(Mutex_RW handle, void* user_data)
+	{
+		if (PROFILING_DISABLED)
+			return;
+
+		if (THREAD.mutex_rw_free)
+			THREAD.mutex_rw_free(handle, user_data);
+	}
+
+	bool
+	_mutex_before_read_lock(Mutex_RW handle, void* user_data)
+	{
+		if (PROFILING_DISABLED)
+			return false;
+
+		if (THREAD.mutex_before_read_lock)
+			return THREAD.mutex_before_read_lock(handle, user_data);
+		return false;
+	}
+
+	void
+	_mutex_after_read_lock(Mutex_RW handle, void* user_data)
+	{
+		if (PROFILING_DISABLED)
+			return;
+
+		if (THREAD.mutex_after_read_lock)
+			THREAD.mutex_after_read_lock(handle, user_data);
+	}
+
+	bool
+	_mutex_before_write_lock(Mutex_RW handle, void* user_data)
+	{
+		if (PROFILING_DISABLED)
+			return false;
+
+		if (THREAD.mutex_before_write_lock)
+			return THREAD.mutex_before_write_lock(handle, user_data);
+		return false;
+	}
+
+	void
+	_mutex_after_write_lock(Mutex_RW handle, void* user_data)
+	{
+		if (PROFILING_DISABLED)
+			return;
+
+		if (THREAD.mutex_after_write_lock)
+			THREAD.mutex_after_write_lock(handle, user_data);
+	}
+
+	void
+	_mutex_after_read_unlock(Mutex_RW handle, void* user_data)
+	{
+		if (PROFILING_DISABLED)
+			return;
+
+		if (THREAD.mutex_after_read_unlock)
+			THREAD.mutex_after_read_unlock(handle, user_data);
+	}
+
+	void
+	_mutex_after_write_unlock(Mutex_RW handle, void* user_data)
+	{
+		if (PROFILING_DISABLED)
+			return;
+
+		if (THREAD.mutex_after_write_unlock)
+			THREAD.mutex_after_write_unlock(handle, user_data);
 	}
 
 	void

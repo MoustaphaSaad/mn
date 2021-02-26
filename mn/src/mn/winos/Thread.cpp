@@ -370,20 +370,10 @@ namespace mn
 	Mutex
 	mutex_new(const char* name)
 	{
-		auto user_data_size = _mutex_user_data_size();
-		auto size = sizeof(IMutex) + user_data_size;
-
-		auto block = alloc(size, alignof(IMutex));
-		auto self = (Mutex)block.ptr;
-		if (user_data_size == 0)
-			self->profile_user_data = nullptr;
-		else
-			self->profile_user_data = (char*)block.ptr + sizeof(IMutex);
-
+		auto self = alloc<IMutex>();
 		self->name = name;
 		InitializeCriticalSectionAndSpinCount(&self->cs, 1<<14);
-
-		_mutex_new(self, self->profile_user_data, self->name);
+		self->profile_user_data = _mutex_new(self, self->name);
 
 		return self;
 	}
@@ -391,20 +381,23 @@ namespace mn
 	void
 	mutex_lock(Mutex self)
 	{
+		auto call_after_lock = _mutex_before_lock(self, self->profile_user_data);
+		mn_defer({
+			if (call_after_lock)
+				_mutex_after_lock(self, self->profile_user_data);
+		});
+
 		if (TryEnterCriticalSection(&self->cs))
 		{
 			_deadlock_detector_mutex_set_exclusive_owner(self);
 			return;
 		}
 
-		auto call_after_lock = _mutex_before_lock(self, self->profile_user_data);
 		worker_block_ahead();
 		_deadlock_detector_mutex_block(self);
 		EnterCriticalSection(&self->cs);
 		_deadlock_detector_mutex_set_exclusive_owner(self);
 		worker_block_clear();
-		if (call_after_lock)
-			_mutex_after_lock(self, self->profile_user_data);
 	}
 
 	void
@@ -420,10 +413,7 @@ namespace mn
 	{
 		_mutex_free(self, self->profile_user_data);
 		DeleteCriticalSection(&self->cs);
-		size_t size = 0;
-		if (self->profile_user_data)
-			size = _mutex_user_data_size();
-		free(Block{ self, sizeof(*self) + size });
+		free(self);
 	}
 
 
@@ -432,6 +422,7 @@ namespace mn
 	{
 		SRWLOCK lock;
 		const char* name;
+		void* profile_user_data;
 	};
 
 	Mutex_RW
@@ -440,18 +431,23 @@ namespace mn
 		Mutex_RW self = alloc<IMutex_RW>();
 		self->lock = SRWLOCK_INIT;
 		self->name = name;
+		self->profile_user_data = _mutex_rw_new(self, self->name);
 		return self;
 	}
 
 	void
 	mutex_rw_free(Mutex_RW self)
 	{
+		_mutex_rw_free(self, self->profile_user_data);
 		free(self);
 	}
 
 	void
 	mutex_read_lock(Mutex_RW self)
 	{
+		_mutex_before_read_lock(self, self->profile_user_data);
+		mn_defer(_mutex_after_read_lock(self, self->profile_user_data));
+
 		if (TryAcquireSRWLockShared(&self->lock))
 		{
 			_deadlock_detector_mutex_set_shared_owner(self);
@@ -470,11 +466,15 @@ namespace mn
 	{
 		_deadlock_detector_mutex_unset_owner(self);
 		ReleaseSRWLockShared(&self->lock);
+		_mutex_after_read_unlock(self, self->profile_user_data);
 	}
 
 	void
 	mutex_write_lock(Mutex_RW self)
 	{
+		_mutex_before_write_lock(self, self->profile_user_data);
+		mn_defer(_mutex_after_write_lock(self, self->profile_user_data));
+
 		if (TryAcquireSRWLockExclusive(&self->lock))
 		{
 			_deadlock_detector_mutex_set_exclusive_owner(self);
@@ -493,6 +493,7 @@ namespace mn
 	{
 		_deadlock_detector_mutex_unset_owner(self);
 		ReleaseSRWLockExclusive(&self->lock);
+		_mutex_after_write_unlock(self, self->profile_user_data);
 	}
 
 
@@ -631,6 +632,9 @@ namespace mn
 	void
 	cond_var_wait(Cond_Var self, Mutex mtx)
 	{
+		_mutex_after_unlock(mtx, mtx->profile_user_data);
+		mn_defer(_mutex_after_lock(mtx, mtx->profile_user_data));
+
 		worker_block_ahead();
 		_deadlock_detector_mutex_unset_owner(mtx);
 		SleepConditionVariableCS(&self->cv, &mtx->cs, INFINITE);
@@ -641,6 +645,9 @@ namespace mn
 	Cond_Var_Wake_State
 	cond_var_wait_timeout(Cond_Var self, Mutex mtx, uint32_t millis)
 	{
+		_mutex_after_unlock(mtx, mtx->profile_user_data);
+		mn_defer(_mutex_after_lock(mtx, mtx->profile_user_data));
+
 		worker_block_ahead();
 		_deadlock_detector_mutex_unset_owner(mtx);
 		auto res = SleepConditionVariableCS(&self->cv, &mtx->cs, millis);

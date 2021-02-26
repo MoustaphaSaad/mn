@@ -22,7 +22,7 @@ namespace mn
 	 * @param[in]  name  The mutex name
 	 */
 	MN_EXPORT Mutex
-	mutex_new(const char* name = "Mutex");
+	_mutex_new(const char* name);
 
 	/**
 	 * @brief      Locks the given mutex
