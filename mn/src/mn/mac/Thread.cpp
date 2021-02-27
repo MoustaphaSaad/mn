@@ -20,6 +20,7 @@ namespace mn
 	{
 		pthread_mutex_t handle;
 		const char* name;
+		const Source_Location* srcloc;
 		void* profile_user_data;
 	};
 
