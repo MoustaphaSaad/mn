@@ -235,6 +235,7 @@ namespace mn
 
 		if (THREAD.mutex_new)
 			return THREAD.mutex_new(handle, name);
+		return nullptr;
 	}
 
 	void
@@ -286,6 +287,8 @@ namespace mn
 
 		if (THREAD.mutex_rw_new)
 			return THREAD.mutex_rw_new(handle, name);
+
+		return nullptr;
 	}
 
 	void
