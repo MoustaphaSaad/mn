@@ -445,8 +445,11 @@ namespace mn
 	void
 	mutex_read_lock(Mutex_RW self)
 	{
-		_mutex_before_read_lock(self, self->profile_user_data);
-		mn_defer(_mutex_after_read_lock(self, self->profile_user_data));
+		auto call_after_lock = _mutex_before_read_lock(self, self->profile_user_data);
+		mn_defer({
+			if (call_after_lock)
+				_mutex_after_read_lock(self, self->profile_user_data)
+		});
 
 		if (TryAcquireSRWLockShared(&self->lock))
 		{
@@ -472,8 +475,11 @@ namespace mn
 	void
 	mutex_write_lock(Mutex_RW self)
 	{
-		_mutex_before_write_lock(self, self->profile_user_data);
-		mn_defer(_mutex_after_write_lock(self, self->profile_user_data));
+		auto call_after_lock = _mutex_before_write_lock(self, self->profile_user_data);
+		mn_defer({
+			if (call_after_lock)
+				_mutex_after_write_lock(self, self->profile_user_data)
+		});
 
 		if (TryAcquireSRWLockExclusive(&self->lock))
 		{

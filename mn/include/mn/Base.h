@@ -154,13 +154,4 @@ namespace mn
 
 	constexpr inline Timeout NO_TIMEOUT{ 0 };
 	constexpr inline Timeout INFINITE_TIMEOUT{ 0xFFFFFFFFFFFFFFFF };
-
-	struct Profiler_Source_Location
-	{
-		const char* name;
-		const char* function;
-		const char* file;
-		uint32_t line;
-		uint32_t color;
-	};
 }
