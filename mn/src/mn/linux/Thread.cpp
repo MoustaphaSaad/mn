@@ -38,7 +38,7 @@ namespace mn
 			srcloc.color = 0;
 			self.name = srcloc.name;
 			self.srcloc = &srcloc;
-			[[maybe_unused]] int result = pthread_mutex_init(&mtx.handle, NULL);
+			[[maybe_unused]] int result = pthread_mutex_init(&self.handle, NULL);
 			assert(result == 0);
 			self.profile_user_data = _mutex_new(&self, self.name);
 		}
