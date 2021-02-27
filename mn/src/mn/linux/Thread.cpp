@@ -455,7 +455,7 @@ namespace mn
 		auto call_after_lock = _mutex_before_read_lock(self, self->profile_user_data);
 		mn_defer({
 			if (call_after_lock)
-				_mutex_after_read_lock(self, self->profile_user_data)
+				_mutex_after_read_lock(self, self->profile_user_data);
 		});
 
 		if (pthread_rwlock_tryrdlock(&self->lock) == 0)
@@ -485,7 +485,7 @@ namespace mn
 		auto call_after_lock = _mutex_before_write_lock(self, self->profile_user_data);
 		mn_defer({
 			if (call_after_lock)
-				_mutex_after_write_lock(self, self->profile_user_data)
+				_mutex_after_write_lock(self, self->profile_user_data);
 		});
 
 		if (pthread_rwlock_trywrlock(&self->lock) == 0)
