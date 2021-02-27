@@ -17,6 +17,7 @@ namespace mn
 {
 	struct IMutex
 	{
+		const Source_Location* srcloc;
 		const char* name;
 		CRITICAL_SECTION cs;
 		void* profile_user_data;
@@ -24,17 +25,26 @@ namespace mn
 
 	struct Leak_Allocator_Mutex
 	{
+		Source_Location srcloc;
 		IMutex self;
 
 		Leak_Allocator_Mutex()
 		{
-			self.name = "allocators mutex";
+			srcloc.name = "allocators mutex";
+			srcloc.function = "mn::_leak_allocator_mutex";
+			srcloc.file = __FILE__;
+			srcloc.line = __LINE__;
+			srcloc.color = 0;
+			self.name = srcloc.name;
+			self.srcloc = &srcloc;
 			InitializeCriticalSectionAndSpinCount(&self.cs, 1<<14);
+			self.profile_user_data = _mutex_new(&self, self.name);
 		}
 
 		~Leak_Allocator_Mutex()
 		{
 			DeleteCriticalSection(&self.cs);
+			_mutex_free(&self, self.profile_user_data);
 		}
 	};
 
@@ -368,9 +378,22 @@ namespace mn
 
 	// API
 	Mutex
+	mutex_new_with_srcloc(const Source_Location* srcloc)
+	{
+		auto self = alloc<IMutex>();
+		self->srcloc = srcloc;
+		self->name = srcloc->name;
+		InitializeCriticalSectionAndSpinCount(&self->cs, 1<<14);
+		self->profile_user_data = _mutex_new(self, self->name);
+
+		return self;
+	}
+
+	Mutex
 	mutex_new(const char* name)
 	{
 		auto self = alloc<IMutex>();
+		self->srcloc = nullptr;
 		self->name = name;
 		InitializeCriticalSectionAndSpinCount(&self->cs, 1<<14);
 		self->profile_user_data = _mutex_new(self, self->name);
@@ -416,14 +439,32 @@ namespace mn
 		free(self);
 	}
 
+	const Source_Location*
+	mutex_source_location(Mutex self)
+	{
+		return self->srcloc;
+	}
+
 
 	//Mutex_RW API
 	struct IMutex_RW
 	{
 		SRWLOCK lock;
 		const char* name;
+		const Source_Location* srcloc;
 		void* profile_user_data;
 	};
+
+	Mutex_RW
+	mutex_rw_new_with_srcloc(const Source_Location* srcloc)
+	{
+		Mutex_RW self = alloc<IMutex_RW>();
+		self->lock = SRWLOCK_INIT;
+		self->name = srcloc->name;
+		self->srcloc = srcloc;
+		self->profile_user_data = _mutex_rw_new(self, self->name);
+		return self;
+	}
 
 	Mutex_RW
 	mutex_rw_new(const char* name)
@@ -431,6 +472,7 @@ namespace mn
 		Mutex_RW self = alloc<IMutex_RW>();
 		self->lock = SRWLOCK_INIT;
 		self->name = name;
+		self->srcloc = nullptr;
 		self->profile_user_data = _mutex_rw_new(self, self->name);
 		return self;
 	}
@@ -500,6 +542,12 @@ namespace mn
 		_deadlock_detector_mutex_unset_owner(self);
 		ReleaseSRWLockExclusive(&self->lock);
 		_mutex_after_write_unlock(self, self->profile_user_data);
+	}
+
+	const Source_Location*
+	mutex_rw_source_location(Mutex_RW self)
+	{
+		return self->srcloc;
 	}
 
 

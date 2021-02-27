@@ -154,4 +154,14 @@ namespace mn
 
 	constexpr inline Timeout NO_TIMEOUT{ 0 };
 	constexpr inline Timeout INFINITE_TIMEOUT{ 0xFFFFFFFFFFFFFFFF };
+
+	// This is a tracy compatible source location struct that's used with mutexes
+	struct Source_Location
+	{
+		const char* name;
+		const char* function;
+		const char* file;
+		uint32_t line;
+		uint32_t color;
+	};
 }

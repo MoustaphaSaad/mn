@@ -53,7 +53,7 @@ rad_new(RAD_Settings settings)
 	mn_defer(mn::allocator_pop());
 
 	auto self = mn::alloc<RAD>();
-	self->mtx = mn::mutex_new("Root Mutex");
+	self->mtx = mn_mutex_new_with_srcloc("RAD Mutex");
 	self->modules = mn::map_new<mn::Str, RAD_Module>();
 	self->uuid = mn::uuid_generate();
 	self->settings = settings;

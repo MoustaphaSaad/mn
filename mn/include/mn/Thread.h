@@ -6,6 +6,9 @@
 
 #include <stdint.h>
 
+#define mn_mutex_new_with_srcloc(name) mn::mutex_new_with_srcloc([&](const char* func_name) -> const mn::Source_Location* { const static mn::Source_Location srcloc { name, func_name, __FILE__, __LINE__, 0 }; return &srcloc; }(__FUNCTION__))
+#define mn_mutex_rw_new_with_srcloc(name) mn::mutex_rw_new_with_srcloc([&](const char* func_name) -> const mn::Source_Location* { const static mn::Source_Location srcloc { name, func_name, __FILE__, __LINE__, 0 }; return &srcloc; }(__FUNCTION__))
+
 namespace mn
 {
 	/**
@@ -15,6 +18,9 @@ namespace mn
 
 	MN_EXPORT Mutex
 	_leak_allocator_mutex();
+
+	MN_EXPORT Mutex
+	mutex_new_with_srcloc(const Source_Location* srcloc);
 
 	/**
 	 * @brief      Creates a new mutex
@@ -48,6 +54,10 @@ namespace mn
 	MN_EXPORT void
 	mutex_free(Mutex mutex);
 
+	// returns the source location if the mutex was created with srcloc, nullptr otherwise
+	MN_EXPORT const Source_Location*
+	mutex_source_location(Mutex mutex);
+
 	/**
 	 * @brief      Destruct function overload for the mutex type
 	 *
@@ -62,6 +72,9 @@ namespace mn
 
 	//Read preferring multi-reader single-writer mutex
 	typedef struct IMutex_RW* Mutex_RW;
+
+	MN_EXPORT Mutex_RW
+	mutex_rw_new_with_srcloc(const Source_Location* srcloc);
 
 	/**
 	 * @brief      Creates a new multi-reader single-writer mutex
@@ -109,6 +122,10 @@ namespace mn
 	 */
 	MN_EXPORT void
 	mutex_write_unlock(Mutex_RW mutex);
+
+	// returns the source location if the mutex was created with srcloc, nullptr otherwise
+	MN_EXPORT const Source_Location*
+	mutex_rw_source_location(Mutex_RW mutex);
 
 
 	//Thread API

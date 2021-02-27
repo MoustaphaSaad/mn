@@ -312,7 +312,7 @@ namespace mn
 
 		self->r = ring_new<T>();
 		ring_reserve(self->r, limit);
-		self->mtx = mutex_new("Channel Mutex");
+		self->mtx = mn_mutex_new_with_srcloc("Channel Mutex");
 		self->read_cv = cond_var_new();
 		self->write_cv = cond_var_new();
 		self->atomic_limit = limit;

@@ -16,21 +16,44 @@
 
 namespace mn
 {
-	pthread_mutex_t*
-	_leak_allocator_mutex_new()
+	struct IMutex
 	{
-		static pthread_mutex_t mtx;
-		[[maybe_unused]] int result = pthread_mutex_init(&mtx, NULL);
-		assert(result == 0);
-		return &mtx;
-	}
+		pthread_mutex_t handle;
+		const char* name;
+		const Source_Location* srcloc;
+		void* profile_user_data;
+	};
 
+	struct Leak_Allocator_Mutex
+	{
+		Source_Location srcloc;
+		IMutex self;
+
+		Leak_Allocator_Mutex()
+		{
+			srcloc.name = "allocators mutex";
+			srcloc.function = "mn::_leak_allocator_mutex";
+			srcloc.file = __FILE__;
+			srcloc.line = __LINE__;
+			srcloc.color = 0;
+			self.name = srcloc.name;
+			self.srcloc = &srcloc;
+			[[maybe_unused]] int result = pthread_mutex_init(&mtx.handle, NULL);
+			assert(result == 0);
+			self.profile_user_data = _mutex_new(&self, self.name);
+		}
+
+		~Leak_Allocator_Mutex()
+		{
+			_mutex_free(&self, self.profile_user_data);
+		}
+	};
 
 	Mutex
 	_leak_allocator_mutex()
 	{
-		static Mutex mtx = (Mutex)_leak_allocator_mutex_new();
-		return mtx;
+		static Leak_Allocator_Mutex mtx;
+		return &mtx.self;
 	}
 
 	static void
@@ -39,14 +62,6 @@ namespace mn
 		ts->tv_sec = ms / 1000;
 		ts->tv_nsec = (ms % 1000) * 1000000;
 	}
-
-
-	struct IMutex
-	{
-		pthread_mutex_t handle;
-		const char* name;
-		void* profile_user_data;
-	};
 
 	// Deadlock detector
 	struct Mutex_Thread_Owner
@@ -370,9 +385,24 @@ namespace mn
 
 	// API
 	Mutex
+	mutex_new_with_srcloc(const Source_Location* srcloc)
+	{
+		auto self = alloc<IMutex>();
+		self->srcloc = srcloc;
+		self->name = srcloc->name;
+		[[maybe_unused]] int result = pthread_mutex_init(&self->handle, NULL);
+		assert(result == 0);
+
+		self->profile_user_data = _mutex_new(self, self->name);
+
+		return self;
+	}
+
+	Mutex
 	mutex_new(const char* name)
 	{
 		auto self = alloc<IMutex>();
+		self->srcloc = nullptr;
 		self->name = name;
 		[[maybe_unused]] int result = pthread_mutex_init(&self->handle, NULL);
 		assert(result == 0);
@@ -422,14 +452,32 @@ namespace mn
 		free(self);
 	}
 
+	const Source_Location*
+	mutex_source_location(Mutex self)
+	{
+		return self->srcloc;
+	}
+
 
 	//Mutex_RW API
 	struct IMutex_RW
 	{
 		pthread_rwlock_t lock;
 		const char* name;
+		const Source_Location* srcloc;
 		void* profile_user_data;
 	};
+
+	Mutex_RW
+	mutex_rw_new_with_srcloc(const Source_Location* srcloc)
+	{
+		Mutex_RW self = alloc<IMutex_RW>();
+		pthread_rwlock_init(&self->lock, NULL);
+		self->name = srcloc->name;
+		self->srcloc = srcloc;
+		self->profile_user_data = _mutex_rw_new(self, self->name);
+		return self;
+	}
 
 	Mutex_RW
 	mutex_rw_new(const char* name)
@@ -437,6 +485,7 @@ namespace mn
 		Mutex_RW self = alloc<IMutex_RW>();
 		pthread_rwlock_init(&self->lock, NULL);
 		self->name = name;
+		self->srcloc = nullptr;
 		self->profile_user_data = _mutex_rw_new(self, self->name);
 		return self;
 	}
@@ -507,6 +556,12 @@ namespace mn
 		_deadlock_detector_mutex_unset_owner(self);
 		pthread_rwlock_unlock(&self->lock);
 		_mutex_after_write_unlock(self, self->profile_user_data);
+	}
+
+	const Source_Location*
+	mutex_rw_source_location(Mutex_RW self)
+	{
+		return self->srcloc;
 	}
 
 

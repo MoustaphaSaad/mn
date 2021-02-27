@@ -178,7 +178,7 @@ namespace mn
 	{
 		auto self = alloc_zerod<IWorker>();
 		self->name = name;
-		self->mtx = mn::mutex_new(self->name.ptr);
+		self->mtx = mn_mutex_new_with_srcloc(self->name.ptr);
 		self->cv = cond_var_new();
 		self->fabric = fabric;
 		self->job_q = stolen_jobs;
@@ -523,7 +523,7 @@ namespace mn
 		self->workers = buf_with_count<Worker>(self->settings.workers_count);
 		self->sleepy_side_workers = buf_new<Worker>();
 		self->ready_side_workers = buf_new<Worker>();
-		self->mtx = mutex_new(self->name.ptr);
+		self->mtx = mn_mutex_new_with_srcloc(self->name.ptr);
 		self->cv = cond_var_new();
 		self->is_running = true;
 		self->atomic_available_jobs = 0;
@@ -893,7 +893,7 @@ namespace mn
 	chan_stream_new()
 	{
 		auto self = alloc_construct<IChan_Stream>();
-		self->mtx = mutex_new("chan stream mutex");
+		self->mtx = mn_mutex_new_with_srcloc("chan stream mutex");
 		self->read_cv = cond_var_new();
 		self->write_cv = cond_var_new();
 		self->atomic_arc = 1;
