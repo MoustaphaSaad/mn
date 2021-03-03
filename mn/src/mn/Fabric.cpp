@@ -10,8 +10,8 @@
 
 namespace mn
 {
-	constexpr static auto DEFAULT_COOP_BLOCKING_THRESHOLD = 100;
-	constexpr static auto DEFAULT_EXTR_BLOCKING_THRESHOLD = 10000;
+	constexpr static auto DEFAULT_COOP_BLOCKING_THRESHOLD = 10;
+	constexpr static auto DEFAULT_EXTR_BLOCKING_THRESHOLD = 1000;
 
 	using Job = Task<void()>;
 
@@ -385,7 +385,7 @@ namespace mn
 
 			// if we have some free workers then it's okay, ignore it this is normal
 			// we only care about total system blocking
-			if (blocking_workers.count < self->workers.count)
+			if (blocking_workers.count < self->workers.count * self->settings.blocking_workers_threshold)
 				buf_clear(blocking_workers);
 
 			// pause all the blocking workers
@@ -514,6 +514,8 @@ namespace mn
 			settings.external_blocking_threshold_in_ms = DEFAULT_EXTR_BLOCKING_THRESHOLD;
 		if (settings.put_aside_worker_count == 0)
 			settings.put_aside_worker_count = settings.workers_count / 2;
+		if (settings.blocking_workers_threshold == 0.0f)
+			settings.blocking_workers_threshold = 0.5f;
 
 
 		auto self = alloc_zerod<IFabric>();
@@ -615,23 +617,23 @@ namespace mn
 	inline static void
 	_multi_threaded_compute(Fabric self, Compute_Dims global, Compute_Dims local, Task<void(Compute_Args)> fn)
 	{
-		std::atomic<size_t> available_concurrent_workers = self->workers.count;
+		assert(global.x >= 0 && global.y >= 0 && global.z >= 0);
+		assert(local.x >= 0 && local.y >= 0 && local.z >= 0);
+
 		Auto_Waitgroup wg;
-		for (uint32_t z = 0; z < global.z; ++z)
+		for (int z = 0; z < global.z; ++z)
 		{
-			for (uint32_t y = 0; y < global.y; ++y)
+			for (int y = 0; y < global.y; ++y)
 			{
-				for (uint32_t x = 0; x < global.x; ++x)
+				for (int x = 0; x < global.x; ++x)
 				{
-					worker_block_on([&available_concurrent_workers] { return available_concurrent_workers > 0; });
-					available_concurrent_workers.fetch_sub(1);
 					wg.add(1);
-					fabric_do(self, [global_x = x, global_y = y, global_z = z, global, local, &available_concurrent_workers, &wg, &fn] {
-						for (uint32_t z = 0; z < local.z; ++z)
+					fabric_do(self, [global_x = x, global_y = y, global_z = z, global, local, &wg, &fn] {
+						for (int z = 0; z < local.z; ++z)
 						{
-							for (uint32_t y = 0; y < local.y; ++y)
+							for (int y = 0; y < local.y; ++y)
 							{
-								for (uint32_t x = 0; x < local.x; ++x)
+								for (int x = 0; x < local.x; ++x)
 								{
 									Compute_Args args;
 									args.workgroup_size = local;
@@ -649,7 +651,6 @@ namespace mn
 							}
 						}
 						wg.done();
-						available_concurrent_workers.fetch_add(1);
 					});
 				}
 			}
@@ -661,17 +662,20 @@ namespace mn
 	inline static void
 	_single_threaded_compute(Compute_Dims global, Compute_Dims local, Task<void(Compute_Args)> fn)
 	{
-		for (uint32_t global_z = 0; global_z < global.z; ++global_z)
+		assert(global.x >= 0 && global.y >= 0 && global.z >= 0);
+		assert(local.x >= 0 && local.y >= 0 && local.z >= 0);
+
+		for (int global_z = 0; global_z < global.z; ++global_z)
 		{
-			for (uint32_t global_y = 0; global_y < global.y; ++global_y)
+			for (int global_y = 0; global_y < global.y; ++global_y)
 			{
-				for (uint32_t global_x = 0; global_x < global.x; ++global_x)
+				for (int global_x = 0; global_x < global.x; ++global_x)
 				{
-					for (uint32_t local_z = 0; local_z < local.z; ++local_z)
+					for (int local_z = 0; local_z < local.z; ++local_z)
 					{
-						for (uint32_t local_y = 0; local_y < local.y; ++local_y)
+						for (int local_y = 0; local_y < local.y; ++local_y)
 						{
-							for (uint32_t local_x = 0; local_x < local.x; ++local_x)
+							for (int local_x = 0; local_x < local.x; ++local_x)
 							{
 								Compute_Args args;
 								args.workgroup_size = local;
@@ -706,23 +710,23 @@ namespace mn
 	inline static void
 	_multi_threaded_compute_sized(Fabric self, Compute_Dims global, Compute_Dims size, Compute_Dims local, Task<void(Compute_Args)> fn)
 	{
-		std::atomic<size_t> available_concurrent_workers = self->workers.count;
+		assert(global.x >= 0 && global.y >= 0 && global.z >= 0);
+		assert(local.x >= 0 && local.y >= 0 && local.z >= 0);
+
 		Auto_Waitgroup wg;
-		for (uint32_t z = 0; z < global.z; ++z)
+		for (int z = 0; z < global.z; ++z)
 		{
-			for (uint32_t y = 0; y < global.y; ++y)
+			for (int y = 0; y < global.y; ++y)
 			{
-				for (uint32_t x = 0; x < global.x; ++x)
+				for (int x = 0; x < global.x; ++x)
 				{
-					worker_block_on([&available_concurrent_workers] { return available_concurrent_workers > 0; });
-					available_concurrent_workers.fetch_sub(1);
 					wg.add(1);
-					fabric_do(self, [global_x = x, global_y = y, global_z = z, global, size, local, &available_concurrent_workers, &wg, &fn] {
-						for (uint32_t z = 0; z < local.z; ++z)
+					fabric_do(self, [global_x = x, global_y = y, global_z = z, global, size, local, &wg, &fn] {
+						for (int z = 0; z < local.z; ++z)
 						{
-							for (uint32_t y = 0; y < local.y; ++y)
+							for (int y = 0; y < local.y; ++y)
 							{
-								for (uint32_t x = 0; x < local.x; ++x)
+								for (int x = 0; x < local.x; ++x)
 								{
 									Compute_Args args;
 									args.workgroup_size = local;
@@ -742,7 +746,6 @@ namespace mn
 							}
 						}
 						wg.done();
-						available_concurrent_workers.fetch_add(1);
 					});
 				}
 			}
@@ -754,17 +757,20 @@ namespace mn
 	inline static void
 	_single_threaded_compute_sized(Compute_Dims global, Compute_Dims size, Compute_Dims local, Task<void(Compute_Args)> fn)
 	{
-		for (uint32_t global_z = 0; global_z < global.z; ++global_z)
+		assert(global.x >= 0 && global.y >= 0 && global.z >= 0);
+		assert(local.x >= 0 && local.y >= 0 && local.z >= 0);
+
+		for (int global_z = 0; global_z < global.z; ++global_z)
 		{
-			for (uint32_t global_y = 0; global_y < global.y; ++global_y)
+			for (int global_y = 0; global_y < global.y; ++global_y)
 			{
-				for (uint32_t global_x = 0; global_x < global.x; ++global_x)
+				for (int global_x = 0; global_x < global.x; ++global_x)
 				{
-					for (uint32_t local_z = 0; local_z < local.z; ++local_z)
+					for (int local_z = 0; local_z < local.z; ++local_z)
 					{
-						for (uint32_t local_y = 0; local_y < local.y; ++local_y)
+						for (int local_y = 0; local_y < local.y; ++local_y)
 						{
-							for (uint32_t local_x = 0; local_x < local.x; ++local_x)
+							for (int local_x = 0; local_x < local.x; ++local_x)
 							{
 								Compute_Args args;
 								args.workgroup_size = local;

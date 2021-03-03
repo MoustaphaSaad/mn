@@ -93,11 +93,22 @@ namespace mn
 	struct Fabric_Settings
 	{
 		const char* name;
+		// default: CPU cores count
 		size_t workers_count;
+		// default: 1/2 CPU cores count
 		size_t put_aside_worker_count;
+		// how many milliseconds sysmon will wait for before declaring this worker blocked
+		// in case this worker announced that it will block via worker_block_ahead, worker_block_clear
+		// default: 10
 		uint32_t coop_blocking_threshold_in_ms;
+		// how many milliseconds sysmon will wait for before declaring this worker blocked
+		// in case this worker didn't announce that it will block via worker_block_ahead, worker_block_clear API
+		// default: 1000
 		uint32_t external_blocking_threshold_in_ms;
-		bool disable_sysmon;
+		// threshold of the blocking workers ratio [0, 1] which sysmon
+		// will use to start evicting these workers if the blocking_workers_count >= workers_count * blocking_workers_threshold
+		// default: 0.5f
+		float blocking_workers_threshold;
 		Task<void()> after_each_job;
 		Task<void()> on_worker_start;
 	};
@@ -132,7 +143,7 @@ namespace mn
 
 	struct Compute_Dims
 	{
-		uint32_t x, y, z;
+		int x, y, z;
 	};
 
 	struct Compute_Args
