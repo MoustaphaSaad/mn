@@ -172,7 +172,7 @@ target_compile_definitions(mn
 	PUBLIC
 		$<$<PLATFORM_ID:Windows>:OS_WINDOWS=1>
 		$<$<PLATFORM_ID:Linux>:OS_LINUX=1>
-		$<$<PLATFORM_ID:Apple>:OS_MACOS=1>)
+		$<$<PLATFORM_ID:APPLE>:OS_MACOS=1>)
 
 target_compile_options(mn
 	PRIVATE
