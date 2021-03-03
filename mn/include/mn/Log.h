@@ -7,7 +7,7 @@ namespace mn
 {
 	template<typename... TArgs>
 	inline static void
-	log_debug(const char* fmt, TArgs&&... args)
+	log_debug([[maybe_unused]] const char* fmt, [[maybe_unused]] TArgs&&... args)
 	{
 		#ifdef DEBUG
 		auto msg = mn::strf(fmt, args...);
