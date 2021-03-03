@@ -95,7 +95,6 @@ rad_register(RAD* self, const char* name, const char* filepath)
 		else
 			os_filepath = mn::strf("{}.so", filepath);
 	#elif OS_MACOS
-		static_assert(sizeof(filepath) == 0, "macos error");
 		if (mn::str_suffix(filepath, ".dylib"))
 			os_filepath = mn::str_from_c(filepath);
 		else

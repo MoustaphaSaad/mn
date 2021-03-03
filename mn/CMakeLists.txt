@@ -174,6 +174,8 @@ target_compile_definitions(mn
 		$<$<PLATFORM_ID:Linux>:OS_LINUX=1>
 		$<$<PLATFORM_ID:Apple>:OS_MACOS=1>)
 
+message(STATUS "platform_id: ${CMAKE_CXX_PLATFORM_ID}")
+
 target_compile_options(mn
 	PRIVATE
 		$<$<CXX_COMPILER_ID:MSVC>:/W4>
