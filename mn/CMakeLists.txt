@@ -172,9 +172,7 @@ target_compile_definitions(mn
 	PUBLIC
 		$<$<PLATFORM_ID:Windows>:OS_WINDOWS=1>
 		$<$<PLATFORM_ID:Linux>:OS_LINUX=1>
-		$<$<PLATFORM_ID:Apple>:OS_MACOS=1>)
-
-message(STATUS "platform_id: ${CMAKE_CXX_PLATFORM_ID}")
+		$<$<PLATFORM_ID:Darwin>:OS_MACOS=1>)
 
 target_compile_options(mn
 	PRIVATE
@@ -193,7 +191,7 @@ target_link_libraries(mn
 	PRIVATE
 		"$<$<PLATFORM_ID:Windows>:dbghelp;ws2_32>"
 		"$<$<PLATFORM_ID:Linux>:pthread;rt;dl;uuid>"
-		"$<$<PLATFORM_ID:Apple>:pthread;dl>")
+		"$<$<PLATFORM_ID:Darwin>:pthread;dl>")
 
 if (MN_LEAK)
 	message(STATUS "feature: leak detector enabled")
