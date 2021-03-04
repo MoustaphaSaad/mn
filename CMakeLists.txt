@@ -50,7 +50,7 @@ endif ()
 
 
 
-add_subdirectory(fmt-6.2.0 EXCLUDE_FROM_ALL)
+add_subdirectory(fmt-7.1.3 EXCLUDE_FROM_ALL)
 add_subdirectory(mn)
 
 if (MN_BUILD_TESTS)

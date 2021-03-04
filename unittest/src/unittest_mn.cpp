@@ -1150,7 +1150,7 @@ TEST_CASE("json support")
 	auto [v, err] = mn::json::parse(json);
 	CHECK(err == false);
 	auto v_str = str_tmpf("{}", v);
-	auto expected = R"""({"name":"my name is \"mostafa\"", "x":null, "y":true, "z":false, "w":213.123, "a":[1.0, false], "subobject":{"name":"subobject"}})""";
+	auto expected = R"""({"name":"my name is \"mostafa\"", "x":null, "y":true, "z":false, "w":213.123, "a":[1, false], "subobject":{"name":"subobject"}})""";
 	CHECK(v_str == expected);
 	mn::json::value_free(v);
 }
