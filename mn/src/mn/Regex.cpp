@@ -1,4 +1,5 @@
 #include "mn/Regex.h"
+#include "mn/Defer.h"
 
 namespace mn
 {
@@ -629,7 +630,7 @@ namespace mn
 		auto current_threads = mn::buf_with_allocator<Regex_Thread>(mn::memory::tmp());
 		auto new_threads = mn::buf_with_allocator<Regex_Thread>(mn::memory::tmp());
 		auto new_thread_set = mn::set_with_allocator<size_t>(mn::memory::tmp());
-		Match_Result res{str, str, false};
+		Match_Result res{str, str, false, false, 0};
 		size_t res_thread_id = SIZE_MAX;
 
 		mn::buf_push(current_threads, Regex_Thread{});
@@ -736,7 +737,7 @@ namespace mn
 				case RGX_OP_MATCH:
 					if (thread_should_update_result(thread.id, res_thread_id))
 					{
-						res = Match_Result { str, it, true };
+						res = Match_Result { str, it, true, false, 0 };
 						res_thread_id = thread.id;
 					}
 					break;
@@ -757,7 +758,7 @@ namespace mn
 				}
 				default:
 					assert(false && "unknown opcode");
-					return Match_Result { str, it, false };
+					return Match_Result { str, it, false, false, 0};
 				}
 			}
 			auto tmp = new_threads;
@@ -789,6 +790,6 @@ namespace mn
 			else
 				it = mn::rune_next(it);
 		}
-		return Match_Result{str, it, false};
+		return Match_Result{str, it, false, false, 0};
 	}
 }
