@@ -176,6 +176,18 @@ target_compile_definitions(mn
 		$<$<PLATFORM_ID:Linux>:OS_LINUX=1>
 		$<$<PLATFORM_ID:Darwin>:OS_MACOS=1>)
 
+if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)")
+	target_compile_definitions(mn
+		PUBLIC
+			ARCH_X86=1
+	)
+elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "(arm64)|(arm32)")
+	target_compile_definitions(mn
+		PUBLIC
+			ARCH_ARM=1
+	)
+endif ()
+
 target_compile_options(mn
 	PRIVATE
 		$<$<CXX_COMPILER_ID:MSVC>:/W4>

@@ -1,5 +1,8 @@
 #include "mn/SIMD.h"
 
+// SIMD is only relevant for x86 family of architectures
+#if ARCH_X86
+
 #ifdef _MSC_VER
 #include <intrin.h>
 #endif
@@ -47,7 +50,7 @@ _mn_simd_check()
 	// References
 	// http://software.intel.com/en-us/blogs/2011/04/14/is-avx-enabled/
 	// http://insufficientlycomplicated.wordpress.com/2011/11/07/detecting-intel-advanced-vector-extensions-avx-in-visual-studio/
-	
+
 	res.avx_supportted = cpuinfo[2] & (1 << 28) || false;
 	bool osxsaveSupported = cpuinfo[2] & (1 << 27) || false;
 	if (osxsaveSupported && res.avx_supportted)
@@ -71,6 +74,14 @@ _mn_simd_check()
 
 	return res;
 }
+#else
+inline static mn_simd_support
+_mn_simd_check()
+{
+	mn_simd_support res{};
+	return res;
+}
+#endif
 
 mn_simd_support
 mn_simd_support_check()
