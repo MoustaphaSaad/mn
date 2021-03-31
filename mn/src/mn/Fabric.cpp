@@ -614,7 +614,7 @@ namespace mn
 		return res;
 	}
 
-	inline static void
+	void
 	_multi_threaded_compute(Fabric self, Compute_Dims global, Compute_Dims local, Task<void(Compute_Args)> fn)
 	{
 		Auto_Waitgroup wg;
@@ -656,52 +656,7 @@ namespace mn
 		task_free(fn);
 	}
 
-	inline static void
-	_single_threaded_compute(Compute_Dims global, Compute_Dims local, Task<void(Compute_Args)> fn)
-	{
-		for (size_t global_z = 0; global_z < global.z; ++global_z)
-		{
-			for (size_t global_y = 0; global_y < global.y; ++global_y)
-			{
-				for (size_t global_x = 0; global_x < global.x; ++global_x)
-				{
-					for (size_t local_z = 0; local_z < local.z; ++local_z)
-					{
-						for (size_t local_y = 0; local_y < local.y; ++local_y)
-						{
-							for (size_t local_x = 0; local_x < local.x; ++local_x)
-							{
-								Compute_Args args;
-								args.workgroup_size = local;
-								args.workgroup_num = global;
-								args.workgroup_id = Compute_Dims{ global_x, global_y, global_z };
-								args.local_invocation_id = Compute_Dims{ local_x, local_y, local_z };
-								// workgroup_id * workgroup_size + local_invocation_id
-								args.global_invocation_id = Compute_Dims{
-									global_x * local.x + local_x,
-									global_y * local.y + local_y,
-									global_z * local.z + local_z,
-								};
-								fn(args);
-							}
-						}
-					}
-				}
-			}
-		}
-		task_free(fn);
-	}
-
 	void
-	fabric_compute(Fabric self, Compute_Dims global, Compute_Dims local, Task<void(Compute_Args)> fn)
-	{
-		if (self == nullptr)
-			_single_threaded_compute(global, local, fn);
-		else
-			_multi_threaded_compute(self, global, local, fn);
-	}
-
-	inline static void
 	_multi_threaded_compute_sized(Fabric self, Compute_Dims global, Compute_Dims size, Compute_Dims local, Task<void(Compute_Args)> fn)
 	{
 		Auto_Waitgroup wg;
@@ -743,58 +698,6 @@ namespace mn
 		}
 		wg.wait();
 		task_free(fn);
-	}
-
-	inline static void
-	_single_threaded_compute_sized(Compute_Dims global, Compute_Dims size, Compute_Dims local, Task<void(Compute_Args)> fn)
-	{
-		for (size_t global_z = 0; global_z < global.z; ++global_z)
-		{
-			for (size_t global_y = 0; global_y < global.y; ++global_y)
-			{
-				for (size_t global_x = 0; global_x < global.x; ++global_x)
-				{
-					for (size_t local_z = 0; local_z < local.z; ++local_z)
-					{
-						for (size_t local_y = 0; local_y < local.y; ++local_y)
-						{
-							for (size_t local_x = 0; local_x < local.x; ++local_x)
-							{
-								Compute_Args args;
-								args.workgroup_size = local;
-								args.workgroup_num = global;
-								args.workgroup_id = Compute_Dims{ global_x, global_y, global_z };
-								args.local_invocation_id = Compute_Dims{ local_x, local_y, local_z };
-								// workgroup_id * workgroup_size + local_invocation_id
-								args.global_invocation_id = Compute_Dims{
-									global_x * local.x + local_x,
-									global_y * local.y + local_y,
-									global_z * local.z + local_z,
-								};
-								if (args.global_invocation_id.x >= size.x || args.global_invocation_id.y >= size.y || args.global_invocation_id.z >= size.z)
-									continue;
-								fn(args);
-							}
-						}
-					}
-				}
-			}
-		}
-		task_free(fn);
-	}
-
-	void
-	fabric_compute_sized(Fabric self, Compute_Dims size, Compute_Dims local, Task<void(Compute_Args)> fn)
-	{
-		Compute_Dims global{
-			1 + ((size.x - 1) / local.x),
-			1 + ((size.y - 1) / local.y),
-			1 + ((size.z - 1) / local.z)
-		};
-		if (self == nullptr)
-			_single_threaded_compute_sized(global, size, local, fn);
-		else
-			_multi_threaded_compute_sized(self, global, size, local, fn);
 	}
 
 	// channel stream

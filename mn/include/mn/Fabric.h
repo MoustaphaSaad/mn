@@ -155,12 +155,6 @@ namespace mn
 		Compute_Dims global_invocation_id;
 	};
 
-	MN_EXPORT void
-	fabric_compute(Fabric self, Compute_Dims global, Compute_Dims local, mn::Task<void(Compute_Args)> task);
-
-	MN_EXPORT void
-	fabric_compute_sized(Fabric self, Compute_Dims size, Compute_Dims local, mn::Task<void(Compute_Args)> task);
-
 	//easy interface
 	template<typename TFunc>
 	inline static void
@@ -688,29 +682,120 @@ namespace mn
 
 	template<typename TFunc>
 	inline static void
+	_single_threaded_compute(Compute_Dims global, Compute_Dims local, TFunc&& fn)
+	{
+		for (size_t global_z = 0; global_z < global.z; ++global_z)
+		{
+			for (size_t global_y = 0; global_y < global.y; ++global_y)
+			{
+				for (size_t global_x = 0; global_x < global.x; ++global_x)
+				{
+					for (size_t local_z = 0; local_z < local.z; ++local_z)
+					{
+						for (size_t local_y = 0; local_y < local.y; ++local_y)
+						{
+							for (size_t local_x = 0; local_x < local.x; ++local_x)
+							{
+								Compute_Args args;
+								args.workgroup_size = local;
+								args.workgroup_num = global;
+								args.workgroup_id = Compute_Dims{ global_x, global_y, global_z };
+								args.local_invocation_id = Compute_Dims{ local_x, local_y, local_z };
+								// workgroup_id * workgroup_size + local_invocation_id
+								args.global_invocation_id = Compute_Dims{
+									global_x * local.x + local_x,
+									global_y * local.y + local_y,
+									global_z * local.z + local_z,
+								};
+								fn(args);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	MN_EXPORT void
+	_multi_threaded_compute(Fabric self, Compute_Dims global, Compute_Dims local, Task<void(Compute_Args)> fn);
+
+	template<typename TFunc>
+	inline static void
 	compute(Fabric f, Compute_Dims global, Compute_Dims local, TFunc&& fn)
 	{
-		fabric_compute(f, global, local, mn::Task<void(Compute_Args)>::make(std::forward<TFunc>(fn)));
+		if (f == nullptr)
+			_single_threaded_compute(global, local, std::forward<TFunc>(fn));
+		else
+			_multi_threaded_compute(f, global, local, mn::Task<void(Compute_Args)>::make(std::forward<TFunc>(fn)));
 	}
 
 	template<typename TFunc>
 	inline static void
 	compute(Compute_Dims global, Compute_Dims local, TFunc&& fn)
 	{
-		fabric_compute(fabric_local(), global, local, mn::Task<void(Compute_Args)>::make(std::forward<TFunc>(fn)));
+		compute(fabric_local(), global, local, std::forward<TFunc>(fn));
 	}
+
+	template<typename TFunc>
+	inline static void
+	_single_threaded_compute_sized(Compute_Dims global, Compute_Dims size, Compute_Dims local, TFunc&& fn)
+	{
+		for (size_t global_z = 0; global_z < global.z; ++global_z)
+		{
+			for (size_t global_y = 0; global_y < global.y; ++global_y)
+			{
+				for (size_t global_x = 0; global_x < global.x; ++global_x)
+				{
+					for (size_t local_z = 0; local_z < local.z; ++local_z)
+					{
+						for (size_t local_y = 0; local_y < local.y; ++local_y)
+						{
+							for (size_t local_x = 0; local_x < local.x; ++local_x)
+							{
+								Compute_Args args;
+								args.workgroup_size = local;
+								args.workgroup_num = global;
+								args.workgroup_id = Compute_Dims{ global_x, global_y, global_z };
+								args.local_invocation_id = Compute_Dims{ local_x, local_y, local_z };
+								// workgroup_id * workgroup_size + local_invocation_id
+								args.global_invocation_id = Compute_Dims{
+									global_x * local.x + local_x,
+									global_y * local.y + local_y,
+									global_z * local.z + local_z,
+								};
+								if (args.global_invocation_id.x >= size.x || args.global_invocation_id.y >= size.y || args.global_invocation_id.z >= size.z)
+									continue;
+								fn(args);
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	MN_EXPORT void
+	_multi_threaded_compute_sized(Fabric self, Compute_Dims global, Compute_Dims size, Compute_Dims local, Task<void(Compute_Args)> fn);
 
 	template<typename TFunc>
 	inline static void
 	compute_sized(Fabric f, Compute_Dims total_size, Compute_Dims local, TFunc&& fn)
 	{
-		fabric_compute_sized(f, total_size, local, mn::Task<void(Compute_Args)>::make(std::forward<TFunc>(fn)));
+		Compute_Dims global{
+			1 + ((total_size.x - 1) / local.x),
+			1 + ((total_size.y - 1) / local.y),
+			1 + ((total_size.z - 1) / local.z)
+		};
+		if (f == nullptr)
+			_single_threaded_compute_sized(global, total_size, local, std::forward<TFunc>(fn));
+		else
+			_multi_threaded_compute_sized(f, global, total_size, local, mn::Task<void(Compute_Args)>::make(std::forward<TFunc>(fn)));
 	}
 
 	template<typename TFunc>
 	inline static void
 	compute_sized(Compute_Dims total_size, Compute_Dims local, TFunc&& fn)
 	{
-		fabric_compute_sized(fabric_local(), total_size, local, mn::Task<void(Compute_Args)>::make(std::forward<TFunc>(fn)));
+		compute_sized(fabric_local(), total_size, local, std::forward<TFunc>(fn));
 	}
 }
