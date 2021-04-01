@@ -611,31 +611,36 @@ namespace mn
 	inline static T
 	clone(const T& value)
 	{
-		static_assert(sizeof(T) == 0, "no clone function found for this type");
-		return value;
+		if constexpr (std::is_integral_v<T>)
+		{
+			return value;
+		}
+		else if constexpr (std::is_floating_point_v<T>)
+		{
+			return value;
+		}
+		else if constexpr (std::is_enum_v<T>)
+		{
+			return value;
+		}
+		else if constexpr (std::is_pointer_v<T>)
+		{
+			return value;
+		}
+		else if constexpr (std::is_same_v<T, bool>)
+		{
+			return value;
+		}
+		else if constexpr (std::is_same_v<T, char>)
+		{
+			return value;
+		}
+		else
+		{
+			static_assert(sizeof(T) == 0, "no clone function found for this type");
+			return value;
+		}
 	}
-
-	#define TRIVIAL_CLONE(TYPE) \
-	inline static TYPE \
-	clone(TYPE v) \
-	{ \
-		return v; \
-	}
-
-	TRIVIAL_CLONE(char)
-	TRIVIAL_CLONE(bool)
-	TRIVIAL_CLONE(int8_t)
-	TRIVIAL_CLONE(int16_t)
-	TRIVIAL_CLONE(int32_t)
-	TRIVIAL_CLONE(int64_t)
-	TRIVIAL_CLONE(uint8_t)
-	TRIVIAL_CLONE(uint16_t)
-	TRIVIAL_CLONE(uint32_t)
-	TRIVIAL_CLONE(uint64_t)
-	TRIVIAL_CLONE(float)
-	TRIVIAL_CLONE(double)
-
-	#undef TRIVIAL_CLONE
 
 	/**
 	 * @brief      A Custom clone function which iterates over the buf and calls the clone function
