@@ -578,6 +578,91 @@ namespace mn
 	MN_EXPORT void
 	str_upper(Str& self);
 
+	struct Rune_Iterator
+	{
+		const char* it;
+		Rune r;
+
+		Rune_Iterator&
+		operator++()
+		{
+			it = rune_next(it);
+			r = rune_read(it);
+			return *this;
+		}
+
+		Rune_Iterator
+		operator++(int)
+		{
+			auto tmp = *this;
+			it = rune_next(it);
+			r = rune_read(it);
+			return tmp;
+		}
+
+		bool
+		operator==(const Rune_Iterator& other) const
+		{
+			return it == other.it;
+		}
+
+		bool
+		operator!=(const Rune_Iterator& other) const
+		{
+			return !operator==(other);
+		}
+
+		const Rune&
+		operator*() const
+		{
+			return r;
+		}
+
+		const Rune*
+		operator->() const
+		{
+			return &r;
+		}
+	};
+
+	struct Str_Runes
+	{
+		const char* begin_it;
+		const char* end_it;
+
+		Rune_Iterator
+		begin() const
+		{
+			Rune_Iterator res{};
+			res.it = begin_it;
+			res.r = rune_read(res.it);
+			return res;
+		}
+
+		Rune_Iterator
+		end() const
+		{
+			Rune_Iterator res{};
+			res.it = end_it;
+			return res;
+		}
+	};
+
+	inline static Str_Runes
+	str_runes(const Str& self)
+	{
+		return Str_Runes {
+			begin(self),
+			end(self)
+		};
+	}
+
+	inline static Str_Runes
+	str_runes(const char* str)
+	{
+		return str_runes(str_lit(str));
+	}
+
 	/**
 	 * @brief      Clone function overload for the string type
 	 *

@@ -21,3 +21,8 @@ target_include_directories(mn_unittest
 	PRIVATE
 		${CMAKE_CURRENT_SOURCE_DIR}/doctest
 )
+
+target_compile_options(mn_unittest
+	PRIVATE
+		$<$<CXX_COMPILER_ID:MSVC>:/utf-8>
+)

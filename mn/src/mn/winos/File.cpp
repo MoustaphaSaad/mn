@@ -13,7 +13,7 @@
 
 namespace mn
 {
-	Str
+	inline static Str
 	_from_os_encoding(Block os_str, Allocator allocator)
 	{
 		int size_needed = WideCharToMultiByte(CP_UTF8, NULL, (LPWSTR)os_str.ptr,
@@ -27,6 +27,23 @@ namespace mn
 		size_needed = WideCharToMultiByte(CP_UTF8, NULL, (LPWSTR)os_str.ptr,
 			int(os_str.size / sizeof(WCHAR)), buffer.ptr, int(buffer.count), NULL, NULL);
 		--buffer.count;
+		return buffer;
+	}
+
+	inline static Block
+	_to_os_encoding(Block utf8, Allocator allocator)
+	{
+		int size_needed = MultiByteToWideChar(CP_UTF8,
+			0, (LPCCH)utf8.ptr, int(utf8.size), NULL, 0);
+
+		//+1 for the null termination
+		size_t required_size = (size_needed + 1) * sizeof(WCHAR);
+		Block buffer = alloc_from(allocator, required_size, alignof(WCHAR));
+
+		MultiByteToWideChar(CP_UTF8, 0, (LPCCH)utf8.ptr, int(utf8.size), (LPWSTR)buffer.ptr, size_needed);
+
+		auto ptr = (WCHAR*)buffer.ptr;
+		ptr[size_needed] = WCHAR(0);
 		return buffer;
 	}
 
@@ -89,8 +106,32 @@ namespace mn
 	{
 		DWORD bytes_read = 0;
 
+		auto win_stdin = file_stdin();
+
 		worker_block_ahead();
-		ReadFile(winos_handle, data.ptr, DWORD(data.size), &bytes_read, NULL);
+		if (winos_handle == win_stdin->winos_handle)
+		{
+			constexpr size_t BUFFER_SIZE = 2048;
+			WCHAR static_buffer[BUFFER_SIZE];
+			WCHAR* wide_ptr = static_buffer;
+
+			Block dynamic_buffer{};
+			if (data.size / 2 >= BUFFER_SIZE)
+			{
+				dynamic_buffer = alloc(data.size, alignof(WCHAR));
+				wide_ptr = (WCHAR*)dynamic_buffer.ptr;
+			}
+			mn_defer(free(dynamic_buffer));
+
+			size_t wide_read = (data.size / sizeof(WCHAR)) < (BUFFER_SIZE / 2) ? (data.size / sizeof(WCHAR)) : (BUFFER_SIZE / 2);
+			DWORD read_chars_count = 0;
+			ReadConsoleW(winos_handle, wide_ptr, (DWORD)wide_read, &read_chars_count, NULL);
+			bytes_read = WideCharToMultiByte(CP_UTF8, NULL, wide_ptr, read_chars_count, (LPSTR)data.ptr, (int)data.size, NULL, NULL);
+		}
+		else
+		{
+			ReadFile(winos_handle, data.ptr, DWORD(data.size), &bytes_read, NULL);
+		}
 		worker_block_clear();
 
 		return bytes_read;
@@ -101,9 +142,33 @@ namespace mn
 	{
 		DWORD bytes_written = 0;
 
+		auto win_stdout = file_stdout();
+		auto win_stderr = file_stderr();
+
 		worker_block_ahead();
-		WriteFile(winos_handle, data.ptr, DWORD(data.size), &bytes_written, NULL);
+		if (winos_handle == win_stdout->winos_handle ||
+			winos_handle == win_stderr->winos_handle)
+		{
+			// check whether it's a console or a redirected stuff
+			DWORD mode;
+			if(GetConsoleMode(winos_handle, &mode) == 0)
+			{
+				// in case it's redirected then write to buffer
+				WriteFile(winos_handle, data.ptr, DWORD(data.size), &bytes_written, NULL);
+			}
+			else
+			{
+				auto os_str = _to_os_encoding(data, allocator_top());
+				mn_defer(free(os_str));
+				WriteConsoleW(winos_handle, os_str.ptr, (DWORD)(os_str.size / sizeof(WCHAR)), &bytes_written, NULL);
+			}
+		}
+		else
+		{
+			WriteFile(winos_handle, data.ptr, DWORD(data.size), &bytes_written, NULL);
+		}
 		worker_block_clear();
+
 		return bytes_written;
 	}
 
@@ -122,18 +187,7 @@ namespace mn
 	Block
 	to_os_encoding(const Str& utf8, Allocator allocator)
 	{
-		int size_needed = MultiByteToWideChar(CP_UTF8,
-			0, utf8.ptr, int(utf8.count), NULL, 0);
-
-		//+1 for the null termination
-		size_t required_size = (size_needed + 1) * sizeof(WCHAR);
-		Block buffer = alloc_from(allocator, required_size, alignof(WCHAR));
-
-		MultiByteToWideChar(CP_UTF8, 0, utf8.ptr, int(utf8.count), (LPWSTR)buffer.ptr, size_needed);
-
-		auto ptr = (WCHAR*)buffer.ptr;
-		ptr[size_needed] = WCHAR(0);
-		return buffer;
+		return _to_os_encoding(block_from(utf8), allocator);
 	}
 
 	Block

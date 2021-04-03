@@ -1271,3 +1271,15 @@ TEST_CASE("arabic set")
 	CHECK(matched(prog, "mostafa") == false);
 	CHECK(matched(prog, "") == false);
 }
+
+TEST_CASE("str runes iterator")
+{
+	mn::Rune runes[] = {'M', 'o', 's', 't', 'a', 'f', 'a'};
+	size_t index = 0;
+	for (auto c: mn::str_runes("Mostafa"))
+	{
+		CHECK(c == runes[index]);
+		index++;
+	}
+	CHECK(index == 7);
+}
