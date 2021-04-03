@@ -648,6 +648,7 @@ namespace mn
 		}
 	};
 
+	// returns a constant range suitable for usage in range for loops, so that you can loop over string runes
 	inline static Str_Runes
 	str_runes(const Str& self)
 	{
@@ -657,6 +658,7 @@ namespace mn
 		};
 	}
 
+	// returns a constant range suitable for usage in range for loops, so that you can loop over string runes
 	inline static Str_Runes
 	str_runes(const char* str)
 	{
