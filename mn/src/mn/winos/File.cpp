@@ -16,6 +16,9 @@ namespace mn
 	inline static Str
 	_from_os_encoding(Block os_str, Allocator allocator)
 	{
+		[[maybe_unused]] auto ptr = (WCHAR*)os_str.ptr;
+		assert(ptr[os_str.size / sizeof(WCHAR)] == 0);
+
 		int size_needed = WideCharToMultiByte(CP_UTF8, NULL, (LPWSTR)os_str.ptr,
 			int(os_str.size / sizeof(WCHAR)), NULL, 0, NULL, NULL);
 		if (size_needed == 0)

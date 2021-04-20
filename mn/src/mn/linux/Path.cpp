@@ -218,7 +218,7 @@ namespace mn
 		::memset(absolute_path, 0, sizeof(absolute_path));
 
 		auto dir_length = readlink("/proc/self/exe", path, sizeof(path));
-		assert(dir_length > -1 && dir_length < sizeof(path));
+		assert(dir_length > -1 && dir_length < (ssize_t)sizeof(path));
 
 		auto realpath_res = realpath(path, absolute_path);
 		assert(realpath_res == absolute_path);

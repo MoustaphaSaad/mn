@@ -277,15 +277,20 @@ namespace mn
 	Str
 	path_executable(Allocator allocator)
 	{
-		WCHAR path[MAX_PATH + 1];
-		::memset(path, 0, sizeof(path));
+		auto path = mn::str_tmp();
+		mn::buf_resize_fill(path, (MAX_PATH + 1) * sizeof(WCHAR), '\0');
 
-		auto path_count = sizeof(path)/sizeof(*path);
+		DWORD res = 0;
+		while (true)
+		{
+			res = GetModuleFileName(NULL, (LPWSTR)path.ptr, (DWORD)(path.count / sizeof(WCHAR)));
+			if (res == path.count / sizeof(WCHAR) && GetLastError() == ERROR_INSUFFICIENT_BUFFER)
+				mn::buf_resize_fill(path, path.count * 2, '\0');
+			else
+				break;
+		}
 
-		auto res = GetModuleFileName(NULL, path, path_count);
-		assert(res > 0 && res < path_count);
-
-		return from_os_encoding({(void*)path, res * sizeof(*path)}, allocator);
+		return from_os_encoding({(void*)path.ptr, (res + 1) * sizeof(WCHAR)}, allocator);
 	}
 
 	int64_t
