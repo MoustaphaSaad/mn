@@ -230,6 +230,10 @@ namespace mn
 		return path_entries(path.ptr, allocator);
 	}
 
+	// returns the absolute path of the executable
+	MN_EXPORT Str
+	path_executable(Allocator allocator = allocator_top());
+
 	// file_last_write_time returns the time of the last write to the given file
 	// if path is not correct it will return 0
 	MN_EXPORT int64_t

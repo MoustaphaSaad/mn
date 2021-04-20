@@ -14,6 +14,8 @@
 #include <limits.h>
 #include <libgen.h>
 
+#include <mach-o/dyld.h>
+
 #include <assert.h>
 
 #include <chrono>
@@ -205,6 +207,25 @@ namespace mn
 			::closedir(d);
 		}
 		return res;
+	}
+
+	Str
+	path_executable(Allocator allocator)
+	{
+		char path[PATH_MAX + 1];
+		::memset(path, 0, sizeof(path));
+
+		char absolute_path[PATH_MAX + 1];
+		::memset(absolute_path, 0, sizeof(absolute_path));
+
+		uint32_t path_size = sizeof(path);
+		auto res = _NSGetExecutablePath(path, &path_size);
+		assert(res == 0);
+
+		auto realpath_res = realpath(path, absolute_path);
+		assert(realpath_res == absolute_path);
+
+		return mn::str_from_c(absolute_path, allocator);
 	}
 
 	int64_t

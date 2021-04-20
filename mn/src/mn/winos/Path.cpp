@@ -274,6 +274,20 @@ namespace mn
 		return res;
 	}
 
+	Str
+	path_executable(Allocator allocator)
+	{
+		WCHAR path[MAX_PATH + 1];
+		::memset(path, 0, sizeof(path));
+
+		auto path_count = sizeof(path)/sizeof(*path);
+
+		auto res = GetModuleFileName(NULL, path, path_count);
+		assert(res > 0 && res < path_count);
+
+		return from_os_encoding({(void*)path, res * sizeof(*path)}, allocator);
+	}
+
 	int64_t
 	file_last_write_time(const char* path)
 	{

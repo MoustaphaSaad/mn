@@ -25,6 +25,7 @@
 #include <mn/SIMD.h>
 #include <mn/Json.h>
 #include <mn/Regex.h>
+#include <mn/Log.h>
 
 #include <chrono>
 #include <iostream>
@@ -1282,4 +1283,9 @@ TEST_CASE("str runes iterator")
 		index++;
 	}
 	CHECK(index == 7);
+}
+
+TEST_CASE("executable path")
+{
+	mn::log_info("{}", mn::path_executable(mn::memory::tmp()));
 }
