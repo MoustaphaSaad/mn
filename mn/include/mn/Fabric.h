@@ -36,6 +36,10 @@ namespace mn
 	MN_EXPORT void
 	worker_task_do(Worker self, const Task<void()>& task);
 
+	// schedules a task batch in to worker queue
+	MN_EXPORT void
+	worker_task_batch_do(Worker self, const Task<void()>* ptr, size_t count);
+
 	// worker_do schedules any callable into the worker queue
 	template<typename TFunc>
 	inline static void
@@ -130,6 +134,10 @@ namespace mn
 	// fabric_task_do adds a task to the fabric
 	MN_EXPORT void
 	fabric_task_do(Fabric self, const Task<void()>& task);
+
+	// adds a batch of tasks to fabric
+	MN_EXPORT void
+	fabric_task_batch_do(Fabric self, const Task<void()>* ptr, size_t count);
 
 	template<typename TFunc>
 	inline static void

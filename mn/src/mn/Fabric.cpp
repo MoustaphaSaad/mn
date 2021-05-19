@@ -468,6 +468,18 @@ namespace mn
 		cond_var_notify(self->cv);
 	}
 
+	void
+	worker_task_batch_do(Worker self, const Task<void()>* ptr, size_t count)
+	{
+		mutex_lock(self->mtx);
+		mn_defer(mutex_unlock(self->mtx));
+
+		ring_reserve(self->job_q, count);
+		for (size_t i = 0; i < count; ++i)
+			ring_push_back(self->job_q, ptr[i]);
+		cond_var_notify(self->cv);
+	}
+
 	Worker
 	worker_local()
 	{
@@ -605,6 +617,24 @@ namespace mn
 		cond_var_notify(self->cv);
 	}
 
+	void
+	fabric_task_batch_do(Fabric self, const Task<void()>* ptr, size_t count)
+	{
+		mutex_lock(self->mtx);
+		mn_defer(mutex_unlock(self->mtx));
+
+		auto next_worker = self->next_worker++;
+		next_worker %= self->workers.count;
+
+		log_debug("batch {} submitted", count);
+
+		auto worker = self->workers[next_worker];
+		worker_task_batch_do(worker, ptr, count);
+
+		self->atomic_available_jobs.fetch_add(count);
+		cond_var_notify(self->cv);
+	}
+
 	Fabric
 	fabric_local()
 	{
@@ -617,6 +647,8 @@ namespace mn
 	void
 	_multi_threaded_compute(Fabric self, Compute_Dims global, Compute_Dims local, Task<void(Compute_Args)> fn)
 	{
+		auto batch = buf_with_allocator<Job>(memory::tmp());
+
 		Auto_Waitgroup wg;
 		for (size_t z = 0; z < global.z; ++z)
 		{
@@ -624,8 +656,8 @@ namespace mn
 			{
 				for (size_t x = 0; x < global.x; ++x)
 				{
-					wg.add(1);
-					fabric_do(self, [global_x = x, global_y = y, global_z = z, global, local, &wg, &fn] {
+					buf_push(batch, Job::make([global_x = x, global_y = y, global_z = z, global, local, &wg, &fn]
+					{
 						for (size_t z = 0; z < local.z; ++z)
 						{
 							for (size_t y = 0; y < local.y; ++y)
@@ -648,10 +680,13 @@ namespace mn
 							}
 						}
 						wg.done();
-					});
+					}));
 				}
 			}
 		}
+
+		wg.add((int)batch.count);
+		fabric_task_batch_do(self, batch.ptr, batch.count);
 		wg.wait();
 		task_free(fn);
 	}
@@ -659,6 +694,8 @@ namespace mn
 	void
 	_multi_threaded_compute_sized(Fabric self, Compute_Dims global, Compute_Dims size, Compute_Dims local, Task<void(Compute_Args)> fn)
 	{
+		auto batch = buf_with_allocator<Job>(memory::tmp());
+
 		Auto_Waitgroup wg;
 		for (size_t z = 0; z < global.z; ++z)
 		{
@@ -666,8 +703,8 @@ namespace mn
 			{
 				for (size_t x = 0; x < global.x; ++x)
 				{
-					wg.add(1);
-					fabric_do(self, [global_x = x, global_y = y, global_z = z, global, size, local, &wg, &fn] {
+					buf_push(batch, Job::make([global_x = x, global_y = y, global_z = z, global, size, local, &wg, &fn]
+					{
 						for (size_t z = 0; z < local.z; ++z)
 						{
 							for (size_t y = 0; y < local.y; ++y)
@@ -692,10 +729,13 @@ namespace mn
 							}
 						}
 						wg.done();
-					});
+					}));
 				}
 			}
 		}
+
+		wg.add((int)batch.count);
+		fabric_task_batch_do(self, batch.ptr, batch.count);
 		wg.wait();
 		task_free(fn);
 	}
