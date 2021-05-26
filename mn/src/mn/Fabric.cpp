@@ -738,6 +738,42 @@ namespace mn
 		task_free(fn);
 	}
 
+	void
+	_multi_threaded_compute_tiled(Fabric self, Compute_Dims total_size, Compute_Dims tile_size, Task<void(Compute_Args)> fn)
+	{
+		auto batch = buf_with_allocator<Job>(memory::tmp());
+
+		Auto_Waitgroup wg;
+		for (size_t global_z = 0; global_z < total_size.z; ++global_z)
+		{
+			for (size_t global_y = 0; global_y < total_size.y; ++global_y)
+			{
+				for (size_t global_x = 0; global_x < total_size.x; ++global_x)
+				{
+					buf_push(batch, Job::make([global_x, global_y, global_z, total_size, tile_size, &wg, &fn] {
+						Compute_Args args{};
+						args.workgroup_size = tile_size;
+						args.workgroup_num = total_size;
+						args.workgroup_id = Compute_Dims{ global_x, global_y, global_z };
+						// workgroup_id * workgroup_size + local_invocation_id
+						args.global_invocation_id = Compute_Dims{
+							global_x * tile_size.x,
+							global_y * tile_size.y,
+							global_z * tile_size.z
+						};
+						fn(args);
+						wg.done();
+					}));
+				}
+			}
+		}
+
+		wg.add((int)batch.count);
+		fabric_task_batch_do(self, batch.ptr, batch.count);
+		wg.wait();
+		task_free(fn);
+	}
+
 	// channel stream
 	void
 	IChan_Stream::dispose()

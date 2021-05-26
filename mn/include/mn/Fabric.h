@@ -806,4 +806,54 @@ namespace mn
 	{
 		compute_sized(fabric_local(), total_size, local, std::forward<TFunc>(fn));
 	}
+
+	template<typename TFunc>
+	inline static void
+	_single_threaded_compute_tiled(Compute_Dims total_size, Compute_Dims tile_size, TFunc&& fn)
+	{
+		for (size_t global_z = 0; global_z < total_size.z; ++global_z)
+		{
+			for (size_t global_y = 0; global_y < total_size.y; ++global_y)
+			{
+				for (size_t global_x = 0; global_x < total_size.x; ++global_x)
+				{
+					Compute_Args args{};
+					args.workgroup_size = tile_size;
+					args.workgroup_num = total_size;
+					args.workgroup_id = Compute_Dims{ global_x, global_y, global_z };
+					// workgroup_id * workgroup_size + local_invocation_id
+					args.global_invocation_id = Compute_Dims{
+						global_x * tile_size.x,
+						global_y * tile_size.y,
+						global_z * tile_size.z
+					};
+					fn(args);
+				}
+			}
+		}
+	}
+
+	MN_EXPORT void
+	_multi_threaded_compute_tiled(Fabric self, Compute_Dims total_size, Compute_Dims tile_size, Task<void(Compute_Args)> fn);
+
+	// performs the compute function in tiles so if you have a total size of
+	// (100, 100, 100) and tile size of (10, 10, 10) you get (10, 10, 10) = 1000 workgroups
+	// but a single local worker for the (10, 10, 10) step/tile
+	// so basically your function will be called total_size/step_size number of times
+	// and will not be invoked for each local tile individually so you have
+	// to process the entire tile in the single call
+	template<typename TFunc>
+	inline static void
+	compute_tiled(Fabric f, Compute_Dims total_size, Compute_Dims tile_size, TFunc&& fn)
+	{
+		Compute_Dims global{
+			1 + ((total_size.x - 1) / tile_size.x),
+			1 + ((total_size.y - 1) / tile_size.y),
+			1 + ((total_size.z - 1) / tile_size.z)
+		};
+		if (f == nullptr)
+			_single_threaded_compute_tiled(global, tile_size, std::forward<TFunc>(fn));
+		else
+			_multi_threaded_compute_tiled(f, global, tile_size, mn::Task<void(Compute_Args)>::make(std::forward<TFunc>(fn)));
+	}
 }
