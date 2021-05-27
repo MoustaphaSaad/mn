@@ -692,6 +692,12 @@ namespace mn
 	inline static void
 	_single_threaded_compute(Compute_Dims global, Compute_Dims local, TFunc&& fn)
 	{
+		auto tmp = allocator_arena_new();
+		auto old = _memory_tmp_set(tmp);
+		mn_defer({
+			_memory_tmp_set(old);
+			allocator_free(tmp);
+		});
 		for (size_t global_z = 0; global_z < global.z; ++global_z)
 		{
 			for (size_t global_y = 0; global_y < global.y; ++global_y)
@@ -716,6 +722,7 @@ namespace mn
 									global_z * local.z + local_z,
 								};
 								fn(args);
+								memory::tmp()->clear_all();
 							}
 						}
 					}
@@ -748,6 +755,12 @@ namespace mn
 	inline static void
 	_single_threaded_compute_sized(Compute_Dims global, Compute_Dims size, Compute_Dims local, TFunc&& fn)
 	{
+		auto tmp = allocator_arena_new();
+		auto old = _memory_tmp_set(tmp);
+		mn_defer({
+			_memory_tmp_set(old);
+			allocator_free(tmp);
+		});
 		for (size_t global_z = 0; global_z < global.z; ++global_z)
 		{
 			for (size_t global_y = 0; global_y < global.y; ++global_y)
@@ -774,6 +787,7 @@ namespace mn
 								if (args.global_invocation_id.x >= size.x || args.global_invocation_id.y >= size.y || args.global_invocation_id.z >= size.z)
 									continue;
 								fn(args);
+								memory::tmp()->clear_all();
 							}
 						}
 					}
@@ -811,6 +825,12 @@ namespace mn
 	inline static void
 	_single_threaded_compute_tiled(Compute_Dims total_size, Compute_Dims tile_size, TFunc&& fn)
 	{
+		auto tmp = allocator_arena_new();
+		auto old = _memory_tmp_set(tmp);
+		mn_defer({
+			_memory_tmp_set(old);
+			allocator_free(tmp);
+		});
 		for (size_t global_z = 0; global_z < total_size.z; ++global_z)
 		{
 			for (size_t global_y = 0; global_y < total_size.y; ++global_y)
@@ -828,6 +848,7 @@ namespace mn
 						global_z * tile_size.z
 					};
 					fn(args);
+					memory::tmp()->clear_all();
 				}
 			}
 		}

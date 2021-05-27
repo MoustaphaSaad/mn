@@ -674,6 +674,7 @@ namespace mn
 										global_z * local.z + z,
 									};
 									fn(args);
+									memory::tmp()->clear_all();
 								}
 							}
 						}
@@ -723,6 +724,7 @@ namespace mn
 									if (args.global_invocation_id.x >= size.x || args.global_invocation_id.y >= size.y || args.global_invocation_id.z >= size.z)
 										continue;
 									fn(args);
+									memory::tmp()->clear_all();
 								}
 							}
 						}

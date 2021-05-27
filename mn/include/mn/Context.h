@@ -74,6 +74,9 @@ namespace mn
 		tmp();
 	}
 
+	MN_EXPORT memory::Arena*
+	_memory_tmp_set(memory::Arena* a);
+
 	MN_EXPORT Reader
 	reader_tmp();
 

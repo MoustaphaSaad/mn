@@ -122,6 +122,15 @@ namespace mn
 		}
 	}
 
+	memory::Arena*
+	_memory_tmp_set(memory::Arena* a)
+	{
+		auto self = context_local();
+		auto res = self->_allocator_tmp;
+		self->_allocator_tmp = a;
+		return res;
+	}
+
 	Reader
 	reader_tmp()
 	{
