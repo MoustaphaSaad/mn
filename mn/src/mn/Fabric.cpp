@@ -213,6 +213,153 @@ namespace mn
 		size_t index;
 	};
 
+	inline static void
+	_sysmon_detect_blocking_workers(Fabric self, Buf<Blocking_Worker>& blocking_workers)
+	{
+		// detect blocking workers
+		for (size_t i = 0; i < self->workers.count; ++i)
+		{
+			auto block_start_time = self->workers[i]->atomic_block_start_time_in_ms.load();
+			if(block_start_time != 0)
+			{
+				auto block_time = time_in_millis() - block_start_time;
+				if(block_time > self->settings.coop_blocking_threshold_in_ms)
+				{
+					buf_push(blocking_workers, Blocking_Worker{ self->workers[i], i });
+				}
+			}
+		}
+
+		// if we have some free workers then it's okay, ignore it this is normal
+		// we only care about total system blocking
+		if (blocking_workers.count < self->workers.count * self->settings.blocking_workers_threshold)
+			buf_clear(blocking_workers);
+
+		// pause all the blocking workers
+		for (auto blocking_worker: blocking_workers)
+			_worker_pause(blocking_worker.worker);
+
+		// move the blocking workers out
+		for (auto blocking_worker: blocking_workers)
+		{
+			Ring<Job> job_q{};
+			{
+				mutex_lock(blocking_worker.worker->mtx);
+				mn_defer(mutex_unlock(blocking_worker.worker->mtx));
+
+				job_q = blocking_worker.worker->job_q;
+				blocking_worker.worker->job_q = ring_new<Job>();
+			}
+
+			{
+				mutex_lock(self->mtx);
+				mn_defer(mutex_unlock(self->mtx));
+
+				// find a suitable worker
+				if (self->ready_side_workers.count > 0)
+				{
+					auto new_worker = buf_top(self->ready_side_workers);
+					buf_pop(self->ready_side_workers);
+
+					self->workers[blocking_worker.index] = new_worker;
+					ring_free(new_worker->job_q);
+					new_worker->job_q = job_q;
+
+					_worker_resume(new_worker);
+				}
+				else
+				{
+					auto new_worker = _worker_new(
+						strf("{} worker #{}", self->name, self->worker_id_generator++),
+						self,
+						job_q
+					);
+
+					self->workers[blocking_worker.index] = new_worker;
+				}
+			}
+		}
+
+		// now that we have replaced all the blocking workers with a newly created workers
+		// we need to store the blocking workers away to be reused later in the replacement above
+		for (auto blocking_worker: blocking_workers)
+			buf_push(self->sleepy_side_workers, blocking_worker.worker);
+
+		// clear the blocking workers list
+		buf_clear(blocking_workers);
+	}
+
+	inline static void
+	_sysmon_detect_long_running_workers(Fabric self, Buf<Blocking_Worker>& blocking_workers)
+	{
+		// detect blocking workers
+		for (size_t i = 0; i < self->workers.count; ++i)
+		{
+			auto job_start_time = self->workers[i]->atomic_job_start_time_in_ms.load();
+			if (job_start_time != 0)
+			{
+				auto job_run_time = time_in_millis() - job_start_time;
+				if(job_run_time > self->settings.external_blocking_threshold_in_ms)
+				{
+					buf_push(blocking_workers, Blocking_Worker{ self->workers[i], i });
+				}
+			}
+		}
+
+		// pause all the blocking workers
+		for (auto blocking_worker: blocking_workers)
+			_worker_pause(blocking_worker.worker);
+
+		// move the blocking workers out
+		for (auto blocking_worker: blocking_workers)
+		{
+			Ring<Job> job_q{};
+			{
+				mutex_lock(blocking_worker.worker->mtx);
+				mn_defer(mutex_unlock(blocking_worker.worker->mtx));
+
+				job_q = blocking_worker.worker->job_q;
+				blocking_worker.worker->job_q = ring_new<Job>();
+			}
+
+			{
+				mutex_lock(self->mtx);
+				mn_defer(mutex_unlock(self->mtx));
+
+				// find a suitable worker
+				if (self->ready_side_workers.count > 0)
+				{
+					auto new_worker = buf_top(self->ready_side_workers);
+					buf_pop(self->ready_side_workers);
+
+					self->workers[blocking_worker.index] = new_worker;
+					ring_free(new_worker->job_q);
+					new_worker->job_q = job_q;
+
+					_worker_resume(new_worker);
+				}
+				else
+				{
+					auto new_worker = _worker_new(
+						strf("{} worker #{}", self->name, self->worker_id_generator++),
+						self,
+						job_q
+					);
+
+					self->workers[blocking_worker.index] = new_worker;
+				}
+			}
+		}
+
+		// now that we have replaced all the blocking workers with a newly created workers
+		// we need to store the blocking workers away to be reused later in the replacement above
+		for (auto blocking_worker: blocking_workers)
+			buf_push(self->sleepy_side_workers, blocking_worker.worker);
+
+		// clear the blocking workers list
+		buf_clear(blocking_workers);
+	}
+
 	static void
 	_sysmon_main(void* fabric)
 	{
@@ -220,8 +367,13 @@ namespace mn
 
 		auto self = (Fabric)fabric;
 
+		// workers who exceeded the coop blocking threshold
 		auto blocking_workers = buf_with_capacity<Blocking_Worker>(self->workers.count);
 		mn_defer(buf_free(blocking_workers));
+
+		// workers who exceeded the external blocking threshold
+		auto long_running_workers = buf_with_capacity<Blocking_Worker>(self->workers.count);
+		mn_defer(buf_free(long_running_workers));
 
 		auto dead_workers = buf_with_capacity<Worker>(self->workers.count);
 		mn_defer(destruct(dead_workers));
@@ -357,89 +509,8 @@ namespace mn
 				return false;
 			});
 
-			// detect blocking workers
-			for (size_t i = 0; i < self->workers.count; ++i)
-			{
-				auto block_start_time = self->workers[i]->atomic_block_start_time_in_ms.load();
-				if(block_start_time != 0)
-				{
-					auto block_time = time_in_millis() - block_start_time;
-					if(block_time > self->settings.coop_blocking_threshold_in_ms)
-					{
-						buf_push(blocking_workers, Blocking_Worker{ self->workers[i], i });
-						continue;
-					}
-				}
-
-				auto job_start_time = self->workers[i]->atomic_job_start_time_in_ms.load();
-				if (job_start_time != 0)
-				{
-					auto job_run_time = time_in_millis() - job_start_time;
-					if(job_run_time > self->settings.external_blocking_threshold_in_ms)
-					{
-						buf_push(blocking_workers, Blocking_Worker{ self->workers[i], i });
-						continue;
-					}
-				}
-			}
-
-			// if we have some free workers then it's okay, ignore it this is normal
-			// we only care about total system blocking
-			if (blocking_workers.count < self->workers.count * self->settings.blocking_workers_threshold)
-				buf_clear(blocking_workers);
-
-			// pause all the blocking workers
-			for (auto blocking_worker: blocking_workers)
-				_worker_pause(blocking_worker.worker);
-
-			// move the blocking workers out
-			for (auto blocking_worker: blocking_workers)
-			{
-				Ring<Job> job_q{};
-				{
-					mutex_lock(blocking_worker.worker->mtx);
-					mn_defer(mutex_unlock(blocking_worker.worker->mtx));
-
-					job_q = blocking_worker.worker->job_q;
-					blocking_worker.worker->job_q = ring_new<Job>();
-				}
-
-				{
-					mutex_lock(self->mtx);
-					mn_defer(mutex_unlock(self->mtx));
-
-					// find a suitable worker
-					if (self->ready_side_workers.count > 0)
-					{
-						auto new_worker = buf_top(self->ready_side_workers);
-						buf_pop(self->ready_side_workers);
-
-						self->workers[blocking_worker.index] = new_worker;
-						ring_free(new_worker->job_q);
-						new_worker->job_q = job_q;
-
-						_worker_resume(new_worker);
-					}
-					else
-					{
-						auto new_worker = _worker_new(
-							strf("{} worker #{}", self->name, self->worker_id_generator++),
-							self,
-							job_q
-						);
-
-						self->workers[blocking_worker.index] = new_worker;
-					}
-				}
-			}
-
-			// now that we have replaced all the blocking workers with a newly created workers
-			// we need to store the blocking workers away to be reused later in the replacement above
-			for (auto blocking_worker: blocking_workers)
-				buf_push(self->sleepy_side_workers, blocking_worker.worker);
-
-			// clear the blocking workers list
-			buf_clear(blocking_workers);
+			_sysmon_detect_blocking_workers(self, blocking_workers);
+			_sysmon_detect_long_running_workers(self, long_running_workers);
 		}
 	}
 
