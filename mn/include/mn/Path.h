@@ -77,7 +77,7 @@ namespace mn
 	inline static Str
 	path_join(Str base, TFirst&& first, TArgs&& ... args)
 	{
-		if (str_suffix(base, "/") == false)
+		if (base.count > 0 && str_suffix(base, "/") == false)
 			str_push(base, "/");
 		str_push(base, std::forward<TFirst>(first));
 		return path_join(base, std::forward<TArgs>(args)...);
