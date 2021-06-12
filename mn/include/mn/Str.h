@@ -129,6 +129,35 @@ namespace mn
 		return str_find(str_lit(self), r, start_in_bytes);
 	}
 
+	// searches for the given target in the given string starting from the given index and moving backward
+	// returns the index of target or SIZE_MAX if it doesn't exists
+	MN_EXPORT size_t
+	str_find_last(const Str& self, const Str& target, size_t start);
+
+	// searches for the given target in the given string starting from the given index and moving backward
+	// returns the index of target or SIZE_MAX if it doesn't exists
+	inline static size_t
+	str_find_last(const Str& self, const char* target, size_t start)
+	{
+		return str_find_last(self, str_lit(target), start);
+	}
+
+	// searches for the given target in the given string starting from the given index and moving backward
+	// returns the index of target or SIZE_MAX if it doesn't exists
+	inline static size_t
+	str_find_last(const char* self, const Str& target, size_t start)
+	{
+		return str_find_last(str_lit(self), target, start);
+	}
+
+	// searches for the given target in the given string starting from the given index and moving backward
+	// returns the index of target or SIZE_MAX if it doesn't exists
+	inline static size_t
+	str_find_last(const char* self, const char* target, size_t start)
+	{
+		return str_find_last(str_lit(self), str_lit(target), start);
+	}
+
 	// replaces a single char in the given string
 	MN_EXPORT void
 	str_replace(Str& self, char to_remove, char to_add);

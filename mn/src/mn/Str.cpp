@@ -140,6 +140,19 @@ namespace mn
 		return size_t(-1);
 	}
 
+	size_t
+	str_find_last(const Str& self, const Str& target, size_t start)
+	{
+		if (start >= self.count || start + target.count > self.count)
+			return size_t(-1);
+
+		for (size_t i = start; i >= 0; i--)
+			if (::memcmp(self.ptr + i, target.ptr, target.count) == 0)
+				return i;
+
+		return size_t(-1);
+	}
+
 	void
 	str_replace(Str& self, char to_remove, char to_add)
 	{
