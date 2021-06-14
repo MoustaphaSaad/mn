@@ -185,6 +185,7 @@ TEST_CASE("str find")
 	CHECK(mn::str_find("hello world", "hello", 1) == -1);
 	CHECK(mn::str_find("hello world", "world", 0) == 6);
 	CHECK(mn::str_find("hello world", "ld", 0) == 9);
+	CHECK(mn::str_find("hello world", "hello", 8) == -1);
 }
 
 TEST_CASE("str split")
