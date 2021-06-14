@@ -185,10 +185,13 @@ TEST_CASE("str find")
 {
 	CHECK(mn::str_find("hello world", "hello world", 0) == 0);
 	CHECK(mn::str_find("hello world", "hello", 0) == 0);
-	CHECK(mn::str_find("hello world", "hello", 1) == -1);
+	CHECK(mn::str_find("hello world", "hello", 1) == SIZE_MAX);
 	CHECK(mn::str_find("hello world", "world", 0) == 6);
 	CHECK(mn::str_find("hello world", "ld", 0) == 9);
-	CHECK(mn::str_find("hello world", "hello", 8) == -1);
+	CHECK(mn::str_find("hello world", "hello", 8) == SIZE_MAX);
+	CHECK(mn::str_find("hello world", "hello world hello", 0) == SIZE_MAX);
+	CHECK(mn::str_find("hello world", "", 0) == 0);
+	CHECK(mn::str_find("", "hello", 0) == SIZE_MAX);
 }
 
 TEST_CASE("str find benchmark")
@@ -196,8 +199,33 @@ TEST_CASE("str find benchmark")
 	auto source = mn::str_tmpf("hello 0");
 	for (size_t i = 0; i < 100; ++i)
 		source = mn::strf(source, ", hello {}", i + 1);
-	ankerl::nanobench::Bench().run("small find", [&]{
+	ankerl::nanobench::Bench().minEpochIterations(233).run("small find", [&]{
 		auto res = mn::str_find(source, "world", 0);
+		ankerl::nanobench::doNotOptimizeAway(res);
+	});
+}
+
+TEST_CASE("str find last")
+{
+	CHECK(mn::str_find_last("hello world", "hello world", 11) == 0);
+	CHECK(mn::str_find_last("hello world", "hello world", 0) == SIZE_MAX);
+	CHECK(mn::str_find_last("hello world", "world", 9) == SIZE_MAX);
+	CHECK(mn::str_find_last("hello world", "world", 11) == 6);
+	CHECK(mn::str_find_last("hello world", "ld", 11) == 9);
+	CHECK(mn::str_find_last("hello world", "hello", 8) == 0);
+	CHECK(mn::str_find_last("hello world", "world", 3) == SIZE_MAX);
+	CHECK(mn::str_find_last("hello world", "hello world hello", 11) == SIZE_MAX);
+	CHECK(mn::str_find_last("hello world", "", 11) == 11);
+	CHECK(mn::str_find_last("", "hello", 11) == SIZE_MAX);
+}
+
+TEST_CASE("str find last benchmark")
+{
+	auto source = mn::str_tmpf("hello 0");
+	for (size_t i = 0; i < 100; ++i)
+		source = mn::strf(source, ", hello {}", i + 1);
+	ankerl::nanobench::Bench().minEpochIterations(233).run("small find last", [&]{
+		auto res = mn::str_find_last(source, "hello 0", source.count);
 		ankerl::nanobench::doNotOptimizeAway(res);
 	});
 }

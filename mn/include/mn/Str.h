@@ -87,12 +87,12 @@ namespace mn
 	MN_EXPORT void
 	str_null_terminate(Str& self);
 
-	// searches for the given target in the given string starting from the given index, returns the index of target 
+	// searches for the given target in the given string starting from the given index, returns the index of target
 	// or SIZE_MAX if it doesn't exists
 	MN_EXPORT size_t
 	str_find(const Str& self, const Str& target, size_t start);
 
-	// searches for the given target in the given string starting from the given index, returns the index of target 
+	// searches for the given target in the given string starting from the given index, returns the index of target
 	// or SIZE_MAX if it doesn't exists
 	inline static size_t
 	str_find(const Str& self, const char* target, size_t start)
@@ -100,7 +100,7 @@ namespace mn
 		return str_find(self, str_lit(target), start);
 	}
 
-	// searches for the given target in the given string starting from the given index, returns the index of target 
+	// searches for the given target in the given string starting from the given index, returns the index of target
 	// or SIZE_MAX if it doesn't exists
 	inline static size_t
 	str_find(const char* self, const Str& target, size_t start)
@@ -108,7 +108,7 @@ namespace mn
 		return str_find(str_lit(self), target, start);
 	}
 
-	// searches for the given target in the given string starting from the given index, returns the index of target 
+	// searches for the given target in the given string starting from the given index, returns the index of target
 	// or SIZE_MAX if it doesn't exists
 	inline static size_t
 	str_find(const char* self, const char* target, size_t start)
@@ -116,12 +116,45 @@ namespace mn
 		return str_find(str_lit(self), str_lit(target), start);
 	}
 
-	// searches for the given rune in the given string starting from the given index, returns the index of target 
+	// searches for the given target in the given string starting from the given index and moving backwards, returns the index of target
+	// or SIZE_MAX if it doesn't exists
+	// note: to search the entire string backwards `str_find_last(self, target, self.count)`
+	MN_EXPORT size_t
+	str_find_last(const Str& self, const Str& target, size_t index);
+
+	// searches for the given target in the given string starting from the given index and moving backwards, returns the index of target
+	// or SIZE_MAX if it doesn't exists
+	// note: to search the entire string backwards `str_find_last(self, target, self.count)`
+	inline static size_t
+	str_find_last(const Str& self, const char* target, size_t index)
+	{
+		return str_find_last(self, str_lit(target), index);
+	}
+
+	// searches for the given target in the given string starting from the given index and moving backwards, returns the index of target
+	// or SIZE_MAX if it doesn't exists
+	// note: to search the entire string backwards `str_find_last(self, target, self.count)`
+	inline static size_t
+	str_find_last(const char* self, const Str& target, size_t index)
+	{
+		return str_find_last(str_lit(self), target, index);
+	}
+
+	// searches for the given target in the given string starting from the given index and moving backwards, returns the index of target
+	// or SIZE_MAX if it doesn't exists
+	// note: to search the entire string backwards `str_find_last(self, target, self.count)`
+	inline static size_t
+	str_find_last(const char* self, const char* target, size_t index)
+	{
+		return str_find_last(str_lit(self), str_lit(target), index);
+	}
+
+	// searches for the given rune in the given string starting from the given index, returns the index of target
 	// or SIZE_MAX if it doesn't exists
 	MN_EXPORT size_t
 	str_find(const Str& self, Rune r, size_t start_in_bytes);
 
-	// searches for the given rune in the given string starting from the given index, returns the index of target 
+	// searches for the given rune in the given string starting from the given index, returns the index of target
 	// or SIZE_MAX if it doesn't exists
 	inline static size_t
 	str_find(const char* self, Rune r, size_t start_in_bytes)
