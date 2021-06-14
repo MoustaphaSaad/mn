@@ -31,6 +31,9 @@
 #include <iostream>
 #include <sstream>
 
+#define ANKERL_NANOBENCH_IMPLEMENT 1
+#include <nanobench.h>
+
 TEST_CASE("allocation")
 {
 	auto b = mn::alloc(sizeof(int), alignof(int));
@@ -186,6 +189,17 @@ TEST_CASE("str find")
 	CHECK(mn::str_find("hello world", "world", 0) == 6);
 	CHECK(mn::str_find("hello world", "ld", 0) == 9);
 	CHECK(mn::str_find("hello world", "hello", 8) == -1);
+}
+
+TEST_CASE("str find benchmark")
+{
+	auto source = mn::str_tmpf("hello 0");
+	for (size_t i = 0; i < 100; ++i)
+		source = mn::strf(source, ", hello {}", i + 1);
+	ankerl::nanobench::Bench().run("small find", [&]{
+		auto res = mn::str_find(source, "world", 0);
+		ankerl::nanobench::doNotOptimizeAway(res);
+	});
 }
 
 TEST_CASE("str split")

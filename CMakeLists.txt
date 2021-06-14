@@ -54,6 +54,7 @@ add_subdirectory(fmt-7.1.3 EXCLUDE_FROM_ALL)
 add_subdirectory(mn)
 
 if (MN_BUILD_TESTS)
+	add_subdirectory(unittest/nanobench EXCLUDE_FROM_ALL)
 	add_subdirectory(unittest)
 endif()
 

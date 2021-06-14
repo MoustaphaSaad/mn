@@ -14,6 +14,7 @@ add_executable(mn_unittest
 target_link_libraries(mn_unittest
 	PRIVATE
 		MoustaphaSaad::mn
+		nanobench::nanobench
 )
 
 # add doctest folder
