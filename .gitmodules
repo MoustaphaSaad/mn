@@ -3,4 +3,4 @@
 	url = https://github.com/onqtam/doctest.git
 [submodule "unittest/nanobench"]
 	path = unittest/nanobench
-	url = git@github.com:martinus/nanobench.git
+	url = https://github.com/martinus/nanobench.git
