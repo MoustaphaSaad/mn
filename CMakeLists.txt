@@ -11,7 +11,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_INSTALL_RPATH "$ORIGIN")
 set(CMAKE_BUILD_RPATH "$ORIGIN")
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-set(FETCHCONTENT_BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/_deps")
+set(FETCHCONTENT_BASE_DIR "${PROJECT_SOURCE_DIR}/_deps" CACHE STRING "put fetch content base dir outside of build folder")
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
@@ -49,10 +49,34 @@ if (MN_THREAD_SANITIZER)
 	endif()
 endif ()
 
+# external dependencies
+include(FetchContent)
+FetchContent_Declare(
+	fmt
+	GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+	GIT_TAG        7.1.3
+	GIT_PROGRESS   TRUE
+)
+FetchContent_MakeAvailable(fmt)
 
 add_subdirectory(mn)
 
 if (MN_BUILD_TESTS)
+	# unittests dependencies
+	FetchContent_Declare(
+		doctest
+		GIT_REPOSITORY https://github.com/onqtam/doctest.git
+		GIT_TAG        2.4.6
+		GIT_PROGRESS   TRUE
+	)
+	FetchContent_Declare(
+		nanobench
+		GIT_REPOSITORY https://github.com/martinus/nanobench.git
+		GIT_TAG        v4.3.5
+		GIT_PROGRESS   TRUE
+	)
+	FetchContent_MakeAvailable(doctest nanobench)
+
 	add_subdirectory(unittest)
 endif()
 
