@@ -1,6 +1,0 @@
-[submodule "unittest/doctest"]
-	path = unittest/doctest
-	url = https://github.com/onqtam/doctest.git
-[submodule "unittest/nanobench"]
-	path = unittest/nanobench
-	url = https://github.com/martinus/nanobench.git
