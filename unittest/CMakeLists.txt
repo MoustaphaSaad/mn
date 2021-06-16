@@ -14,14 +14,14 @@ add_executable(mn_unittest
 include(FetchContent)
 FetchContent_Declare(
 	doctest
-	GIT_REPOSITORY git@github.com:onqtam/doctest.git
+	GIT_REPOSITORY https://github.com/onqtam/doctest.git
 	GIT_TAG        2.4.6
 	GIT_PROGRESS   TRUE
 )
 
 FetchContent_Declare(
 	nanobench
-	GIT_REPOSITORY git@github.com:martinus/nanobench.git
+	GIT_REPOSITORY https://github.com/martinus/nanobench.git
 	GIT_TAG        v4.3.5
 	GIT_PROGRESS   TRUE
 )
