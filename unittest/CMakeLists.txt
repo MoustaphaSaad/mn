@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.9)
+cmake_minimum_required(VERSION 3.16)
 
 # list source files
 set(SOURCE_FILES
@@ -11,16 +11,28 @@ add_executable(mn_unittest
 	${SOURCE_FILES}
 )
 
+include(FetchContent)
+FetchContent_Declare(
+	doctest
+	GIT_REPOSITORY git@github.com:onqtam/doctest.git
+	GIT_TAG        2.4.6
+	GIT_PROGRESS   TRUE
+)
+
+FetchContent_Declare(
+	nanobench
+	GIT_REPOSITORY git@github.com:martinus/nanobench.git
+	GIT_TAG        v4.3.5
+	GIT_PROGRESS   TRUE
+)
+
+FetchContent_MakeAvailable(doctest nanobench)
+
 target_link_libraries(mn_unittest
 	PRIVATE
 		MoustaphaSaad::mn
+		doctest::doctest
 		nanobench::nanobench
-)
-
-# add doctest folder
-target_include_directories(mn_unittest
-	PRIVATE
-		${CMAKE_CURRENT_SOURCE_DIR}/doctest
 )
 
 target_compile_options(mn_unittest

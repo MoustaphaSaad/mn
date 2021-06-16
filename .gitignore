@@ -24,6 +24,7 @@ forge/generated/*
 compile_commands.json
 **/Exports.h
 examples/example-hot-reload-lib-exports.h
+_deps
 
 # User-specific files
 *.suo

@@ -153,6 +153,17 @@ endif()
 
 add_library(MoustaphaSaad::mn ALIAS mn)
 
+message(STATUS "deps folder is ${FETCHCONTENT_BASE_DIR}")
+include(FetchContent)
+FetchContent_Declare(
+	fmt
+	GIT_REPOSITORY git@github.com:fmtlib/fmt.git
+	GIT_TAG        7.1.3
+	GIT_PROGRESS   TRUE
+)
+
+FetchContent_MakeAvailable(fmt)
+
 target_link_libraries(mn
 	PUBLIC
 		fmt::fmt
