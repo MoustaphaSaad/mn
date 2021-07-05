@@ -233,4 +233,33 @@ namespace mn
 	// unlocks the specified region of the file
 	MN_EXPORT bool
 	file_read_unlock(File handle, int64_t offset, int64_t size);
+
+	// represents a memory mapped file
+	struct Mapped_File
+	{
+		Block data;
+	};
+
+	// memory maps a given file region into memory and returns a mapped file structure
+	// if size = 0 this will map the file starting from the offset to the end of the file
+	// returns a nullptr in case of failure
+	MN_EXPORT Mapped_File*
+	file_mmap(File file, int64_t offset, int64_t size, IO_MODE io_mode);
+
+	// tries to open a file and maps the specified region into memory
+	// if size = 0 this will map the file starting from the offset to the end of the file
+	// returns a nullptr in case of failure
+	MN_EXPORT Mapped_File*
+	file_mmap(const Str& filename, int64_t offset, int64_t size, IO_MODE io_mode, OPEN_MODE open_mode, SHARE_MODE share_mode = SHARE_MODE_ALL);
+
+	// unmaps the given mapped file, and returns whether the unmap was successful
+	MN_EXPORT bool
+	file_unmap(Mapped_File* self);
+
+	// destruct overload for mapped file
+	inline static void
+	destruct(Mapped_File* self)
+	{
+		file_unmap(self);
+	}
 }

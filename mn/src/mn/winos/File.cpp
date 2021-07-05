@@ -497,4 +497,101 @@ namespace mn
 
 		return UnlockFileEx(self->winos_handle, 0, size_low, size_high, &ov);
 	}
+
+	struct IMapped_File
+	{
+		Mapped_File file_view;
+		HANDLE file_map;
+		// if set this means that the mapped file owns it
+		File mn_file_handle;
+	};
+
+	Mapped_File*
+	file_mmap(File file, int64_t offset, int64_t size, IO_MODE io_mode)
+	{
+		DWORD permission = PAGE_READONLY;
+		DWORD access = FILE_MAP_READ;
+		switch (io_mode)
+		{
+		case IO_MODE_READ:
+			permission = PAGE_READONLY;
+			access = FILE_MAP_READ;
+			break;
+		case IO_MODE_WRITE:
+		case IO_MODE_READ_WRITE:
+			permission = PAGE_READWRITE;
+			access = FILE_MAP_ALL_ACCESS;
+			break;
+		default:
+			assert(false && "unreachable");
+			break;
+		}
+
+		auto filesize = file_size(file);
+		if (size == 0)
+			size = filesize - offset;
+
+		auto file_map = CreateFileMapping(
+			file->winos_handle,
+			NULL,
+			permission,
+			DWORD((size >> 32) & 0xFFFFFFFF),
+			DWORD(size & 0xFFFFFFFF),
+			NULL
+		);
+
+		if (file_map == INVALID_HANDLE_VALUE)
+			return nullptr;
+		mn_defer(if (file_map != INVALID_HANDLE_VALUE) CloseHandle(file_map));
+
+		auto ptr = MapViewOfFile(
+			file_map,
+			access,
+			DWORD((offset >> 32) & 0xFFFFFFFF),
+			DWORD(offset & 0xFFFFFFFF),
+			(SIZE_T)size
+		);
+
+		if (ptr)
+			return nullptr;
+
+		auto self = alloc_zerod<IMapped_File>();
+		self->file_map = file_map;
+		file_map = INVALID_HANDLE_VALUE;
+		self->file_view.data.ptr = ptr;
+		self->file_view.data.size = size;
+
+		return &self->file_view;
+	}
+
+	Mapped_File*
+	file_mmap(const Str& filename, int64_t offset, int64_t size, IO_MODE io_mode, OPEN_MODE open_mode, SHARE_MODE share_mode)
+	{
+		auto file = file_open(filename, io_mode, open_mode, share_mode);
+		if (file == nullptr)
+			return nullptr;
+		mn_defer(file_close(file));
+
+		auto res = file_mmap(file, offset, size, io_mode);
+		if (res == nullptr)
+			return nullptr;
+
+		auto self = (IMapped_File*)res;
+		self->mn_file_handle = file;
+		file = nullptr;
+		return res;
+	}
+
+	bool
+	file_unmap(Mapped_File* ptr)
+	{
+		auto self = (IMapped_File*)ptr;
+
+		auto res = UnmapViewOfFile(self->file_view.data.ptr);
+		res |= CloseHandle(self->file_map);
+		if (self->mn_file_handle)
+			file_close(self->mn_file_handle);
+		mn::free(self);
+		return res;
+	}
 }

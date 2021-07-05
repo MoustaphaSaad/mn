@@ -339,4 +339,85 @@ namespace mn
 		fl.l_len = size;
 		return fcntl(self->macos_handle, F_SETLK, &fl) != -1;
 	}
+
+	struct IMapped_File
+	{
+		Mapped_File file_view;
+		// if set this means that the mapped file owns it
+		File mn_file_handle;
+	};
+
+	Mapped_File*
+	file_mmap(File file, int64_t offset, int64_t size, IO_MODE io_mode)
+	{
+		int prot = PROT_READ;
+		int flags = MAP_PRIVATE;
+		switch (io_mode)
+		{
+		case IO_MODE_READ:
+			prot = PROT_READ;
+			flags = MAP_PRIVATE;
+			break;
+		case IO_MODE_WRITE:
+			prot = PROT_WRITE;
+			flags = MAP_SHARED;
+			break;
+		case IO_MODE_READ_WRITE:
+			prot = PROT_READ | PROT_WRITE;
+			flags = MAP_SHARED;
+			break;
+		default:
+			assert(false && "unreachable");
+			break;
+		}
+
+		auto filesize = file_size(file);
+		if (size == 0)
+			size = filesize - offset;
+
+		auto ptr = ::mmap(
+			NULL,
+			size,
+			prot,
+			flags,
+			file->linux_handle,
+			offset
+		);
+
+		if (ptr == nullptr)
+			return nullptr;
+		
+		auto self = alloc_zerod<IMapped_File>();
+		self->file_view.data.ptr = ptr;
+		self->file_view.data.size = size;
+
+		return &self->file_view;
+	}
+
+	Mapped_File*
+	file_mmap(const Str& filename, int64_t offset, int64_t size, IO_MODE io_mode, OPEN_MODE open_mode, SHARE_MODE share_mode)
+	{
+		auto file = file_open(filename, io_mode, open_mode, share_mode);
+		if (file == nullptr)
+			return nullptr;
+		mn_defer(file_close(file));
+
+		auto res = file_mmap(file, offset, size, io_mode);
+		if (res == nullptr)
+			return nullptr;
+
+		auto self = (IMapped_File*)res;
+		self->mn_file_handle = file;
+		file = nullptr;
+		return res;
+	}
+
+	bool
+	file_unmap(Mapped_File* ptr)
+	{
+		auto self = (IMapped_File*)ptr;
+		auto res = ::munmap(self->file_view.data.ptr, self->file_view.data.size);
+		mn::free(self);
+		return res == 0;
+	}
 }
