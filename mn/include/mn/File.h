@@ -252,6 +252,15 @@ namespace mn
 	MN_EXPORT Mapped_File*
 	file_mmap(const Str& filename, int64_t offset, int64_t size, IO_MODE io_mode, OPEN_MODE open_mode, SHARE_MODE share_mode = SHARE_MODE_ALL);
 
+	// tries to open a file and maps the specified region into memory
+	// if size = 0 this will map the file starting from the offset to the end of the file
+	// returns a nullptr in case of failure
+	inline static Mapped_File*
+	file_mmap(const char* filename, int64_t offset, int64_t size, IO_MODE io_mode, OPEN_MODE open_mode, SHARE_MODE share_mode = SHARE_MODE_ALL)
+	{
+		return file_mmap(str_lit(filename), offset, size, io_mode, open_mode, share_mode);
+	}
+
 	// unmaps the given mapped file, and returns whether the unmap was successful
 	MN_EXPORT bool
 	file_unmap(Mapped_File* self);

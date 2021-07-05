@@ -552,7 +552,7 @@ namespace mn
 			(SIZE_T)size
 		);
 
-		if (ptr)
+		if (ptr == nullptr)
 			return nullptr;
 
 		auto self = alloc_zerod<IMapped_File>();
@@ -570,7 +570,7 @@ namespace mn
 		auto file = file_open(filename, io_mode, open_mode, share_mode);
 		if (file == nullptr)
 			return nullptr;
-		mn_defer(file_close(file));
+		mn_defer(if (file) file_close(file));
 
 		auto res = file_mmap(file, offset, size, io_mode);
 		if (res == nullptr)
