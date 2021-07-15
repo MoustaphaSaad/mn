@@ -340,10 +340,14 @@ namespace mn
 		auto tmp_path = str_new();
 		mn_defer(str_free(tmp_path));
 
-		for(size_t i = 2; i < files.count; ++i)
+		for(size_t i = 0; i < files.count; ++i)
 		{
 			str_clear(tmp_path);
-			if(files[i].kind == Path_Entry::KIND_FILE)
+			if(files[i].name == "." || files[i].name == "..")
+			{
+				continue;
+			}
+			else if(files[i].kind == Path_Entry::KIND_FILE)
 			{
 				tmp_path = path_join(tmp_path, path, files[i].name);
 				if(file_remove(tmp_path) == false)
